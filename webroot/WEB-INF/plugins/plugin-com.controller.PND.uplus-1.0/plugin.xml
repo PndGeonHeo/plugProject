@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><plugin>
+    <id>com.controller.PND.uplus</id>
+    <name><![CDATA[ Uplus ]]></name>
+    <active>yes</active>
+    <version>2.3</version>
+    <env-version>11.0</env-version>
+    <vendor>PND</vendor>
+    <jartime>2019-07-18</jartime>
+    <description><![CDATA[ uPlus Controller ]]></description>
+    <change-notes><![CDATA[]]></change-notes>
+    <main-package>com.controller</main-package>
+    <lifecycle-monitor class="com.I18nPluginMonitor"/>
+    <function-recorder class="com.controller.ControllerRegister"/>
+    <extra-decision>
+        <ControllerRegisterProvider class="com.controller.ControllerRegister"/>
+    </extra-decision>
+</plugin>

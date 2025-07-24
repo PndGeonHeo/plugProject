@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>큐/스킬 현황</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+<style>
+	.u-container {height:99%;}
+	.sub-container{flex:1;}
+</style>
+</head>
+<body>
+<div class="u-container d-flex">
+	<!--큐현황-->
+	<div class="sub-container">
+		<iframe src="${fineServletURL}/test/v2/queue" width="100%" height="100%" style="min-width:825px"></iframe>
+	</div>
+
+	<!--스킬현황-->
+	<div class="sub-container">
+		<iframe src="${fineServletURL}/test/v2/skill?type=${type}" width="100%" height="100%" style="min-width:770px"></iframe>
+	</div>
+</div>
+</body>
+</html>

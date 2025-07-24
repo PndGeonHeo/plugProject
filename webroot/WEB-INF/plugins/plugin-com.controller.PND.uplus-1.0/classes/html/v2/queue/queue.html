@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>큐 현황</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-ui.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.cookie.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-pagination.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+<style>
+	button, .custom-select {height:25px !important;}
+
+	.filter-wrapper {width:auto;}
+	.filter-wrapper .d-table {padding:20px 2rem;width:100%;}
+	.filter-wrapper .d-table-cell {vertical-align:middle;}
+	.filter-wrapper .d-table-cell > label {width:2.7em;text-align:right;vertical-align:middle;}
+
+	.grid-container {padding:1.5rem 2rem 1rem;}
+
+	.summary {margin-bottom:2.5rem;}
+	.summary tr {height:35px;}
+	.summary tr:last-child {border-top:2px solid #bcbcbc;}
+	.summary th {background-color:#f4f4f4;}
+	.summary th, .table td {vertical-align:middle;text-align:center;padding:.45rem;border:1px solid #c9caca;}
+	.summary th:first-child, .table td:first-child {border-left-width:0;}
+	.summary th:last-child, .table td:last-child {border-right-width:0;}
+
+	.d-table {width:100%;}
+
+	#qgroup-tree, #queue-tree {width:250px;}
+	#filter-tree {width:200px;}
+</style>
+
+<script>
+	var Grid = tui.Grid;
+	Grid.applyTheme('clean');
+	Grid.setLanguage('ko');
+	var perPage = 11;
+
+	var qInfo = ${qInfo}; // 큐정보(전체)
+	var qTree = arrayToTree({data: qInfo, value: 'id', name: 'name', parent: 'group'});
+
+	var ts_qgroup, ts_queue, ts_filter;
+
+	var page = 'QUEUE';
+	var listGroupCols = [], listCols = [], popupCols = {ROUTE: [], QMONITOR: []};
+
+	var filter_data = ${filterData};
+	var filter_value = ${filterValue};
+
+	var groupFlag = true;
+	var grid;
+
+	$(document).ready(function() {
+		createGrid();
+
+		// 큐그룹 treeselect
+		ts_qgroup = new Treeselect({
+			parentHtmlContainer: document.querySelector('#qgroup-tree'),
+			value: [],
+			options: qTree.map(e => {
+				return {name: e.name, value: e.value, htmlAttr: e.htmlAttr}
+			}),
+			listSlotHtmlComponent: getAllSelectSlot('ts_qgroup'),
+			emptyText: '결과없음',
+			placeholder: '- 선택 -'
+		});
+		ts_qgroup.srcElement.addEventListener('input', e => {
+			treeselectAll(ts_qgroup);
+			if (!ts_qgroup.isListOpened) {
+				setQueueTree(e.detail);
+			}
+		});
+		ts_qgroup.srcElement.addEventListener('name-change', e => {
+			if (!ts_qgroup.isListOpened) {
+				setQueueTree(e.detail);
+			}
+		});
+		ts_qgroup.srcElement.addEventListener('open', e => {
+			treeselectAll(ts_qgroup);
+		});
+		ts_qgroup.srcElement.addEventListener('close', e => {
+			setQueueTree(e.detail);
+		});
+		ts_qgroup.srcElement.addEventListener('search', e => {
+			ts_qgroup.searchText = e.detail;
+			setTimeout(function() {
+				treeselectAll(ts_qgroup);
+			}, 400);
+		});
+
+		// 큐 treeselect
+		ts_queue = new Treeselect({
+			parentHtmlContainer: document.querySelector('#queue-tree'),
+			value: [],
+			options: [],
+			showCount: true,
+			listSlotHtmlComponent: getAllSelectSlot('ts_queue'),
+			emptyText: '결과없음',
+			placeholder: '- 선택 -'
+		});
+		ts_queue.srcElement.addEventListener('input', e => {
+			treeselectAll(ts_queue);
+		});
+		ts_queue.srcElement.addEventListener('open', e => {
+			treeselectAll(ts_queue);
+		});
+		ts_queue.srcElement.addEventListener('search', e => {
+			if (!ts_queue.searchText && !e.detail) {
+				return;
+			}
+			if (ts_queue.searchText == e.detail) {
+				return;
+			}
+
+			ts_queue.searchText = e.detail;
+			setTimeout(function() {
+				treeselectAll(ts_queue);
+			}, 400);
+		});
+
+		// 필터 select
+		ts_filter = new Treeselect({
+			parentHtmlContainer: document.querySelector('#filter-tree'),
+			value: '',
+			options: getFilterOptions(),
+			placeholder: '- 필터선택 -',
+			isSingleSelect: true,
+			//clearable: false,
+			showTags: false,
+			emptyText: '결과없음'
+		});
+		ts_filter.srcElement.addEventListener('input', e => {
+			if (ts_filter.value) {
+				var ft = filter_data.filter(e => e.col_nm == ts_filter.value);
+				setByFilter(ft);
+			}
+		});
+
+		// 기본값 필터 조회
+		var defaultFt = filter_data.filter(e => e.default_yn == 'Y');
+		if (defaultFt.length > 0) {
+			ts_filter.updateValue(defaultFt[0].col_nm);
+		}
+		setByFilter(defaultFt);
+
+		// 페이지 오픈 여부에 따른 통계 요청 처리
+		var observer = new ResizeObserver(() => {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, active);
+
+			if (grid && grid.el) {
+				grid.refreshLayout();
+			}
+		});
+		observer.observe(document.querySelector('.u-container'));
+
+		document.addEventListener('visibilitychange', function() {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, active);
+		});
+
+		// 필터저장 모달
+		$('#btn-filter').on('click', function() {
+			$('#dialog-filter').find('iframe').attr('src', '${fineServletURL}/uplus/v2/multi/filter/form?page=' + page + '&f=saveFilter');
+			$('#dialog-filter').dialog({
+				title: '필터저장',
+				closeOnEscape: true,
+				modal: true,
+				draggable: false,
+				resizable: false,
+				width: 250,
+				height: 210,
+				close: (ev, ui) => {
+					$(ev.target).find('iframe').attr('src', '');
+				}
+			});
+		});
+
+		// 조회 조건 초기화
+		$('#btn-clear').on('click', function() {
+			ts_qgroup.updateValue([]);
+			ts_queue.updateValue([]);
+		});
+	});
+
+	/* 필터 select options */
+	function getFilterOptions() {
+		return [...new Set(filter_data.map(e => e.col_nm))].map(e => { return {name: e, value: e} });
+	}
+
+	/* 필터 조회 */
+	function setByFilter(ft) {
+		var cols = {};
+		var cols2 = {};
+
+		$(ft).each((i, f) => {
+			var values = filter_value.filter(e => e.col_seq == f.seq);
+			if (values.length > 0) {
+				switch (f.type) {
+					case 'GROUP_FLAG': // 그룹별/개별 여부
+						values.forEach(e => {
+							if (e.value && e.value.length > 0) {
+								groupFlag = JSON.parse(e.value);
+							}
+						});
+						break;
+
+					case 'LIST_GROUP': // 큐그룹
+						ts_qgroup.updateValue(values.map(e => e.value));
+						setQueueTree(values.map(e => e.value));
+						break;
+
+					case 'LIST': // 큐
+						ts_queue.updateValue(values.map(e => e.value));
+						break;
+
+					case 'ROUTE': // 라우트현황
+						values.forEach(e => {
+							if (!cols.hasOwnProperty(e.col_seq)) {
+								cols[e.col_seq] = {value: [], collapse: f.col5};
+							}
+							cols[e.col_seq].value.push(e.value);
+						});
+						break;
+
+					case 'QMONITOR': // 큐모니터
+						values.forEach(e => {
+							if (!cols2.hasOwnProperty(e.col_seq)) {
+								cols2[e.col_seq] = [];
+							}
+							cols2[e.col_seq].push(e.value);
+						});
+						break;
+
+					default:
+						console.error('not found filter values');
+						break;
+				}
+			}
+		});
+
+		// 그룹별/개별 탭 toggle
+		$('.q-tab[data-is-group="' + groupFlag + '"]').removeClass('btn-clear').addClass('btn-primary');
+		$('.q-tab[data-is-group="' + groupFlag + '"]').siblings('.q-tab').removeClass('btn-primary').addClass('btn-clear');
+
+		// 리스트 조회
+		var checked = getChecked(groupFlag);
+		if (checked && checked.length > 0) {
+			list();
+		}
+
+		// 라우트현황
+		if (Object.values(cols).length > 0) {
+			Object.values(cols).forEach(e => route(e));
+		}
+
+		// 큐모니터
+		if (Object.values(cols2).length > 0) {
+			Object.values(cols2).forEach(e => qmonitor(e));
+		}
+	}
+
+	/* grid 생성 */
+	function createGrid() {
+		grid = new Grid({
+			el: document.querySelector('#q-grid-wrapper'),
+			scrollX: false,
+			scrollY: false,
+			minBodyHeight: 35,
+			minRowHeight: 35,
+			rowHeight: 35,
+			usageStatistics: false,
+			copyOptions: {
+				useFormattedValue: true
+			},
+			header: {
+				height: 35,
+				align: 'right',
+				columns: [
+					{name: 'name', align: 'left'},
+					{name: '206', align: 'center'}
+				]
+			},
+			columnOptions: {
+				resizable: true
+			},
+			columns: [
+				{
+					header: 'id',
+					name: 'id',
+					hidden: true
+				},
+				{
+					header: '큐그룹',
+					name: 'name',
+					align: 'left',
+					sortable: true,
+					width: 200
+				},
+				{
+					header: '대기호',
+					name: '205',
+					align: 'right',
+					sortable: true,
+					formatter: data => data.value.toLocaleString()
+				},
+				{
+					header: '최대대기시간',
+					name: '206',
+					align: 'center',
+					sortable: true,
+					width: 120,
+					formatter: data => getHis(data.value)
+				},
+				{
+					header: '인입호',
+					name: '211',
+					align: 'right',
+					sortable: true,
+					formatter: data => data.value.toLocaleString()
+				},
+				{
+					header: '응답호',
+					name: '212',
+					align: 'right',
+					sortable: true,
+					formatter: data => data.value.toLocaleString()
+				},
+				{
+					header: '넌서비스호',
+					name: '231',
+					hidden: true
+				},
+				{
+					header: '포기호',
+					name: '221',
+					hidden: true
+				},
+				{
+					header: '포기호',
+					name: 'abncalls',
+					align: 'right',
+					sortable: true,
+					formatter: data => data.value.toLocaleString()
+				},
+				{
+					header: '응답호-구간1',
+					name: '213',
+					hidden: true
+				},
+				{
+					header: '응답호-구간2',
+					name: '214',
+					hidden: true
+				},
+				{
+					header: '응답호-구간3',
+					name: '215',
+					hidden: true
+				},
+				{
+					header: '응답률 (%)',
+					name: 'acdpt',
+					align: 'right',
+					sortable: true,
+					comparator: function(valueA, valueB, rowA, rowB) {
+						var a = toNumber((rowA['212'] / rowA['211']) * 100);
+						var b = toNumber((rowB['212'] / rowB['211']) * 100);
+						return a - b;
+					},
+					formatter: function(data) {
+						var value = (data.row['212'] / data.row['211']) * 100; // (응답호/인입호) * 100
+						return toNumber(value).toFixed(1) + '%';
+					}
+				},
+				{
+					header: 'SL (%)',
+					name: 'sl',
+					align: 'right',
+					sortable: true,
+					comparator: function(valueA, valueB, rowA, rowB) {
+						var acdcallsA = rowA['213'] + rowA['214'] + rowA['215']; // 25초이내응답호
+						var acdcallsB = rowB['213'] + rowB['214'] + rowB['215']; // 25초이내응답호
+						var a = toNumber((acdcallsA / rowA['212']) * 100);
+						var b = toNumber((acdcallsB / rowB['212']) * 100);
+						return a - b;
+					},
+					formatter: function(data) {
+						var acdcalls = data.row['213'] + data.row['214'] + data.row['215']; // 25초이내응답호
+						var value = (acdcalls / data.row['211']) * 100; // (25초이내응답호/인입호) * 100
+						return toNumber(value).toFixed(1) + '%';
+					}
+				}
+			],
+			summary: {
+				defaultContent: {
+					useAutoSummary: true
+				}
+			},
+			pageOptions: {
+				useClient: true,
+				perPage: perPage
+			},
+			contextMenu: () => (
+				[
+					[{
+						name: 'export',
+						label: '엑셀요청',
+						action: () => excel()
+					}],
+				]
+			)
+		});
+		grid.on('afterChange', e => summary()); // summary update
+	}
+
+	/* 조회조건 영역 collapse callback */
+	function collapse() {
+		if (grid && grid.el) {
+			if ($('.collapse-content-y').hasClass('active')) {
+				perPage = 11;
+
+			} else {
+				perPage = 15;
+			}
+
+			grid.setPerPage(perPage);
+		}
+	}
+
+	/* 상단 데이터 총 건수 표기 */
+	function setRowCount() {
+		$('#q-grid-count').text(grid.getRowCount().toLocaleString());
+	}
+
+	/* 조회 조건(선택된 큐 또는 큐그룹) 가져오기 */
+	function getChecked(isGroup) {
+		if (typeof isGroup != 'boolean' && !isGroup) {
+			isGroup = groupFlag;
+		}
+
+		if (isGroup) {
+			// 그룹별 조회인 경우, 큐그룹 return
+			return ts_qgroup.value;
+
+		} else {
+			// 개별 조회인 경우, 큐 return
+			return ts_queue.value;
+		}
+	}
+
+	/* 조회 */
+	function list() {
+		var checked = getChecked();
+		if (!checked || checked.length < 1) {
+			alert('조회 조건을 선택하세요');
+			return;
+		}
+
+		listGroupCols = ts_qgroup.value;
+		listCols = ts_queue.value;
+
+		wsStart();
+	}
+
+	/* 그룹별/개별 탭 클릭 */
+	function tab(isGroup) {
+		if (groupFlag == isGroup) {
+			return;
+		}
+
+		var checked = getChecked(isGroup);
+		if (!checked || checked.length < 1) {
+			alert('조회 조건을 선택하세요');
+			return;
+		}
+
+		groupFlag = isGroup;
+
+		var $button = $('.q-tab.btn-clear');
+		$button.removeClass('btn-clear').addClass('btn-primary');
+		$button.siblings('.q-tab').removeClass('btn-primary').addClass('btn-clear');
+
+		grid.setColumnHeaders({name: groupFlag ? '큐그룹' : '큐'});
+
+		list();
+	}
+
+	var qmap = {};
+
+	/* 필터 저장 */
+	function saveFilter(params) {
+		if (Object.keys(qmap).length < 1) {
+			qInfo.forEach(e => qmap[e.id] = e.name);
+		}
+
+		var ft = new MultiFilter(page, '', params.colNm, params.defaultYn, params.mergeYn);
+		ft.addData('LIST_GROUP', listGroupCols.map(e => { return {value: e, remark: e} }));
+		ft.addData('LIST', listCols.map(e => { return {value:e, remark: qmap[e]} }));
+		ft.addData('GROUP_FLAG', {value: String(groupFlag), remark: groupFlag ? '그룹별' : '개별'});
+		Object.keys(popupCols).forEach((key, i) => {
+			popupCols[key].forEach((e, j) => {
+				ft.addData(key, [...e.value.split(',').map(s => { return {value: s, remark: qmap[s]} })], {col5: e.collapse});
+			});
+		});
+
+		var res = updateMultiFilter(ft);
+		if (res.result) {
+			filter_data = JSON.parse(res.filterData);
+			filter_value = JSON.parse(res.filterValue);
+
+			ts_filter.options = getFilterOptions();
+			ts_filter.value = params.colNm;
+			ts_filter.mount();
+		}
+	}
+
+	/* 엑셀 요청 */
+	function excel(r) {
+		if (!r) {
+			exportReasonForm(); // 사유 입력
+
+		} else {
+			grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (groupFlag ? '큐그룹현황' : '큐현황')});
+		}
+	}
+
+	/* 상단 summary */
+	function summary() {
+		var summary = grid.getSummaryValues();
+
+		$('#cnt205').text(summary['205'].sum.toLocaleString());      // 대기호
+		$('#cnt206').text(getHis(toNumber(summary['206'].max)));     // 최대대기시간
+		$('#cnt211').text(summary['211'].sum.toLocaleString());      // 인입호
+		$('#cnt221').text(summary['abncalls'].sum.toLocaleString()); // 포기호
+		$('#cnt212').text(summary['212'].sum.toLocaleString());      // 응답호
+		$('#acdpt').text(toNumber((summary['212'].sum / summary['211'].sum) * 100).toFixed(1) + '%'); // 응답률 (응답호/인입호 * 100)
+
+		var acdcalls = toNumber(summary['213'].sum + summary['214'].sum + summary['215'].sum); // 25초이내응답호
+		$('#sl').text(toNumber((acdcalls / summary['211'].sum) * 100).toFixed(1) + '%');       // 서비스레벨 (25초이내응답호/인입호) * 100
+	}
+
+	/* 팝업 개수 제한 체크 */
+	function maxCountCheck(type) {
+		var popupMaxCount = ${popupMaxCount};
+		var n = toNumber(popupMaxCount && popupMaxCount[type]);
+
+		if (n) {
+			var count = getPopupCount(type);
+			if (count >= n) {
+				toast('해당 팝업은 최대 ' + n + '개 열 수 있습니다.', {level: 'error'});
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/* 라우트현황 팝업 */
+	var popup_idx = 0;
+	function route(data) {
+		if (!maxCountCheck('ROUTE')) {
+			return;
+		}
+
+		var checked = [];
+		var collapse = false;
+
+		if (data && data.value) {
+			checked = data.value;
+			collapse = data.collapse;
+
+		} else {
+			// 사용자 직접 오픈
+			var checked = getChecked(false);
+			if (!checked || checked.length < 1) {
+				alert('조회 조건을 선택하세요');
+				return;
+			}
+		}
+
+		$('#route-form').empty();
+		$('#route-form').append($('<input>', {type: 'hidden', name: 'alert', value: true}));
+		$('#route-form').append($('<input>', {type: 'hidden', name: 'queue', value: checked}));
+		$('#route-form').append($('<input>', {type: 'hidden', name: 'collapse', value: collapse})); // 조회목록 펼침 여부
+
+		// 동일 조건 팝업 열려있는 경우, 새로 열지 않음
+		var popupName = 'ROUTE';
+		var col = popupCols.ROUTE.find(e => e.value == checked.join());
+		if (col) {
+			popupName = col.popupName;
+
+		} else {
+			popupName += popup_idx;
+			popup_idx++;
+		}
+
+		window.open('', popupName, 'width=850,height=230');
+		$('#route-form').attr('target', popupName);
+		$('#route-form').submit();
+	}
+
+	/* 큐모니터 팝업 */
+	function qmonitor(data) {
+		if (!maxCountCheck('QMONITOR')) {
+			return;
+		}
+
+		var checked = [];
+
+		if (data && data.length > 0) {
+			checked = data;
+
+		} else {
+			// 사용자 직접 오픈
+			var checked = getChecked(false);
+			if (!checked || checked.length < 1) {
+				alert('조회 조건을 선택하세요');
+				return;
+			}
+		}
+
+		$('#qmonitor-form').empty();
+		$('#qmonitor-form').append($('<input>', {type: 'hidden', name: 'alert', value: true}));
+		$('#qmonitor-form').append($('<input>', {type: 'hidden', name: 'queue', value: checked}));
+
+		// 동일 조건 팝업 열려있는 경우, 새로 열지 않음
+		var popupName = 'QMONITOR';
+		var col = popupCols.QMONITOR.find(e => e.value == checked.join());
+		if (col) {
+			popupName = col.popupName;
+
+		} else {
+			popupName += popup_idx;
+			popup_idx++;
+		}
+
+		window.open('', popupName, 'width=1100,height=280');
+		$('#qmonitor-form').attr('target', popupName);
+		$('#qmonitor-form').submit();
+	}
+
+	var winker;
+	var wProp;
+	var dbID;
+	var req_dbID = [];
+
+	var statID = [205, 206, 212, 213, 214, 215, 221, 231].join(STA_DIM); // 대기호, 최대대기시간, 응답호, 응답호-구간1, 응답호-구간2, 응답호-구간3, 포기호, 넌서비스호
+																		 // 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231) 이므로 별도 요청 X
+
+	var wStat = {}; // websocket 수신 데이터
+	var dummyStat = {id: '', name: '', 205: 0, 206: 0, 211: 0, 212: 0, 213: 0, 214: 0, 215: 0, 221: 0, 231: 0, abncalls: 0};
+
+	var gridInitFlag = true;  // true: grid 초기화 / false: grid 유지
+	var dataInitFlag = false; // true: websocket 요청 데이터 모두 수신 완료 (큐 개수 기준이므로, 모든 통계항목이 수신되기 전 어떤 항목이라도 수신되면 true)
+
+	/* 조회 시 websocket event */
+	function wsStart() {
+		if (!isOpen(winker)) {
+			// 기존 connection 없는 경우(ex. 최초 조회) connection부터 시작
+			wsConnect();
+
+		} else {
+			// 기존 요청 해제 후 재요청
+			wsClose(winker, req_dbID, statID);
+			wsOpen();
+		}
+	}
+
+	/* websocket connection */
+	function wsConnect() {
+		if (winker && winker.inactiveCloseFlag) {
+			gridInitFlag = false;
+			BI.Msg.toast('데이터 로드중');
+
+		} else {
+			gridInitFlag = true;
+		}
+
+		try {
+			if (!wProp) {
+				wProp = getWProperties();
+			}
+
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError();
+		}
+	}
+
+	/* websocket request open */
+	function wsOpen() {
+		if (gridInitFlag) {
+			if (grid && grid.el) {
+				grid.destroy();
+				$('#q-grid-count').text('0'); // 상단 총 건수 업데이트
+			}
+
+			if (!(grid && grid.el)) {
+				createGrid();
+			}
+
+			dataInitFlag = false;
+			onLoading(true);
+		}
+
+		wStat = {};
+		gridInitFlag = true;
+
+		if (groupFlag) {
+			// 그룹별 조회
+			var queue = qInfo.filter(e => listGroupCols.indexOf(e.group) > -1);
+			dbID = queue.map(e => e.id);
+
+		} else {
+			// 개별 조회
+			dbID = listCols;
+		}
+
+		grid.setColumnHeaders({name: groupFlag ? '큐그룹' : '큐'});
+
+		req_dbID = openStat(winker, dbID, statID);
+
+		onLoading(false);
+
+		if (grid && grid.el) {
+			grid.refreshLayout();
+		}
+	}
+
+	/* websocket callback */
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		// onopen
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(function() {
+				wsOpen();
+			}, 1000);
+		}
+
+		// onmessage (요청 dbID인 경우에만 처리)
+		if (eventId == WMessageType.EventStatInfo) {
+			if (dbID.indexOf(objectDBId) > -1) {
+				if (groupFlag) {
+					// 그룹별 조회
+					setGroupData(objectDBId, objectType, statId, statVal);
+
+				} else {
+					// 개별 조회
+					setData(objectDBId, objectType, statId, statVal);
+				}
+			}
+		}
+
+		// onerror
+		if (eventId == WMessageType.EventError) {
+			wsError();
+		}
+	}
+
+	/* 화면단 데이터 갱신 (그룹별) */
+	function setGroupData(dbID, type, statId, statVal) {
+		var group = qInfo.filter(e => e.id == dbID)[0].group;
+		var stat = wStat[group];
+		if (!stat) {
+			stat = {
+				id: group,
+				name: qInfo.filter(e => e.id == group)[0].name,
+				values: {205: {}, 206: {}, 211: {}, 212: {}, 213: {}, 214: {}, 215: {}, 221: {}, 231: {}, abncalls: {}}
+			};
+			wStat[group] = stat;
+		}
+
+		var values = stat.values;
+		values[statId][dbID] = toNumber(statVal);
+
+		// 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231)
+		if (statId == '212' || statId == '221' || statId == '231') {
+			values['211'][dbID] = toNumber(values['212'][dbID] + values['221'][dbID] + values['231'][dbID]);
+		}
+
+		// 포기호 = 포기호(221) + 넌서비스호(231)
+		if (statId == '221' || statId == '231') {
+			values['abncalls'][dbID] = toNumber(values['221'][dbID] + values['231'][dbID]);
+		}
+
+		// grid 내 해당 로우가 없는 경우, 로우 추가
+		var row = grid.findRows({id: stat.id});
+		if (row.length < 1) {
+			var rowdata = JSON.parse(JSON.stringify(dummyStat));
+			rowdata.id = stat.id;
+			rowdata.name = stat.name;
+			grid.appendRow(rowdata);
+			row = grid.findRows({id: stat.id});
+
+			setRowCount(); // 상단 총 건수 업데이트
+		}
+
+		// grid data update
+		Object.keys(values).forEach(key => {
+			var val = 0;
+
+			if (key == '206') {
+				val = Object.values(values[key]).sort((a, b) => b - a)[0];   // 최대대기시간
+			} else {
+				val = Object.values(values[key]).reduce((a, b) => a + b, 0); // 그룹별 조회이므로, 각 항목 sum
+			}
+
+			grid.setValue(row[0].rowKey, key, val);
+		});
+	}
+
+	/* 화면단 데이터 갱신 (개별) */
+	function setData(dbID, type, statId, statVal) {
+		var stat = wStat[dbID];
+		if (!stat) {
+			stat = JSON.parse(JSON.stringify(dummyStat));
+			stat.id = dbID;
+			stat.name = qInfo.filter(e => e.id == dbID)[0].name;
+			wStat[dbID] = stat;
+		}
+
+		stat[statId] = toNumber(statVal);
+
+		// grid 내 해당 로우가 없는 경우, 로우 추가
+		var row = grid.findRows({id: dbID});
+		if (row.length < 1) {
+			grid.appendRow(stat);
+			row = grid.findRows({id: dbID});
+
+			setRowCount(); // 상단 총 건수 업데이트
+		}
+
+		// grid data update
+		grid.setValue(row[0].rowKey, statId, stat[statId]);
+
+		// 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231)
+		if (statId == '212' || statId == '221' || statId == '231') {
+			stat['211'] = stat['212'] + stat['221'] + stat['231'];
+			grid.setValue(row[0].rowKey, '211', stat['211']);
+		}
+
+		// 포기호 = 포기호(221) + 넌서비스호(231)
+		if (statId == '221' || statId == '231') {
+			stat['abncalls'] = stat['221'] + stat['231'];
+			grid.setValue(row[0].rowKey, 'abncalls', stat['abncalls']);
+		}
+
+		summary();
+	}
+
+	/* 큐그룹 선택 시 큐 treeselect option 셋팅 */
+	function setQueueTree(qgroup) {
+		if (ts_queue) {
+			if (JSON.stringify(qgroup) == JSON.stringify(ts_queue.parent)) {
+				return;
+			}
+
+			ts_queue.value = [];
+			ts_queue.destroy();
+		}
+
+		var options = [];
+		var data = qTree.filter(e => qgroup.indexOf(e.value) > -1);
+		data.forEach(e => options.push(...e.children));
+
+		options.sort((a, b) => {
+			return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+		});
+
+		if (options && options.length > 0) {
+			ts_queue.parent = qgroup;
+			ts_queue.options = options;
+			ts_queue.mount();
+		}
+	}
+</script>
+</head>
+<body>
+
+<div class="u-container">
+	<!--라우트현황-->
+	<form id="route-form" action="${fineServletURL}/uplus/v2/queue/route" method="POST"></form>
+
+	<!--큐모니터-->
+	<form id="qmonitor-form" action="${fineServletURL}/uplus/v2/queue/qmonitor" method="POST"></form>
+
+	<div class="filter-wrapper collapse-content-y active">
+		<div class="d-table">
+			<div class="d-table-cell">
+				<label>큐그룹</label>
+				<div class="tree-container custom-select" id="qgroup-tree" data-placeholder="- 선택 -"></div>
+				<button class="btn btn-info" onclick="list();">조회</button>
+				<button class="btn btn-clear" id="btn-clear">초기화</button>
+				<br><br>
+				<label class="mb-0">큐</label>
+				<div class="tree-container custom-select mb-0" id="queue-tree" data-placeholder="- 선택 -"></div>
+				<button class="btn btn-info" onclick="route();">라우트현황</button>
+				<button class="btn btn-info" onclick="qmonitor();">큐모니터</button>
+			</div>
+
+			<div class="d-table-cell text-right">
+				<div class="tree-container custom-select" id="filter-tree" data-placeholder="- 필터선택 -"></div>
+				<button class="btn btn-white" id="btn-filter">필터저장</button>
+			</div>
+		</div>
+	</div>
+	<div class="collapse-button-y active shadow-sm" data-target=".filter-wrapper" data-func="collapse"></div>
+
+	<div class="grid-container load-data">
+		<!-- summary -->
+		<table class="table summary">
+			<colgroup>
+				<col width="14%">
+				<col width="16%">
+				<col width="14%">
+				<col width="14%">
+				<col width="14%">
+				<col width="14%">
+				<col width="14%">
+			</colgroup>
+			<tr>
+				<th>대기호</th>
+				<th>최대대기시간</th>
+				<th>인입호</th>
+				<th>응답호</th>
+				<th>포기호</th>
+				<th>응답률 (%)</th>
+				<th>SL (%)</th>
+			</tr>
+			<tr>
+				<td id="cnt205">0</td>
+				<td id="cnt206">0</td>
+				<td id="cnt211">0</td>
+				<td id="cnt212">0</td>
+				<td id="cnt221">0</td>
+				<td id="acdpt">0</td>
+				<td id="sl">0</td>
+			</tr>
+		</table>
+		<!-- // summary -->
+
+		<div class="d-table mb-2">
+			<div class="d-table-cell">
+				<div class="btn-group">
+					<button type="button" class="btn q-tab" data-is-group="true"  onclick="tab(true);">그룹</button>
+					<button type="button" class="btn q-tab" data-is-group="false" onclick="tab(false);">개별</button>
+				</div>
+			</div>
+			<div class="d-table-cell text-right">
+				<span class="mr-2">총 <em id="q-grid-count">0</em>건</span>
+				<button class="btn btn-white" onclick="excel();">엑셀요청</button>
+			</div>
+		</div>
+
+		<div class="grid-wrapper" id="q-grid-wrapper"></div>
+	</div>
+
+	<!--필터저장-->
+	<div class="dialog" id="dialog-filter" style="display:none">
+		<iframe width="100%" height="100%"></iframe>
+	</div>
+	<!--//필터저장-->
+</div>
+
+</body>
+</html>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><plugin>
+    <id>com.fr.plugin.reportRefresh.v11</id>
+    <name><![CDATA[决策报表内报表块刷新]]></name>
+    <active>yes</active>
+    <hidden>no</hidden>
+    <version>1.5.10</version>
+    <env-version>11.0~11.0</env-version>
+    <jartime>2021-08-30</jartime>
+    <vendor>finereport</vendor>
+    <description><![CDATA[实现表单报表块内实现页面自动刷新]]></description>
+    <change-notes><![CDATA[
+        <p><a>[2023-11-27]切换远程环境导致报错问题</a></p>
+        <p><a>[2023-07-11]国际化更新</a></p>
+        <p><a>[2023-07-11]修复刷新时内部图表可能出现报错问题</a></p>
+        <p><a>[2022-11-29]修复预览多次记录埋点问题</a></p>
+    	<p><a>[2022-03-02]插件国际化适配</a></p>
+		<p><a>[2022-02-11]插件国际化补充</a></p>
+        <p><a>[2021-03-30]插件国际化完善</a></p>
+        <p><a>[2020-04-17]修复监控刷新后导致报表块缩小的问题</a></p>
+        <p><a>[2019-11-07]修复断网后无法重连问题</a></p>
+		<p><a>[2019-05-22]修复sessionidtimeout问题</a></p>
+    	<p><a>[2019-04-19]修复tab块中报表块不刷新问题</a></p>
+		<p><a>[2019-03-22]修复与组件加载动画插件冲突的问题</a></p>
+		<p><a>[2019-02-18]修复区域监控一段时间后无法刷新问题</a></p>
+		<p><a>[2018-12-26]修复复杂表单下卡顿问题</a></p>
+        <p><a>[2018-11-06]增加对组件动画的支持</a></p>
+        <p><a>[2018-07-31]插件升级以支持10</a></p>
+        <p><a>[2018-7-17]修复安装性能插件后无法自动刷新的问题</a></p>
+		<p><a>[2017-10-27]支持自定义类刷新, 精简获取刷新配置的json</a></p>
+		<p><a>[2017-7-12]适配9.0热部署</a></p>
+		<p><a>[2017-05-24]加入联动刷新, 修改jartime</a></p>
+		<p><a>[2017-05-22]加入单报表块刷新功能, 隐藏刷新动画</a></p>
+        <p><a>[2017-05-17]加入监控区域刷新功能</a></p>
+        <p><a>[2017-02-10]区分表单和报表参数面板，非表单不刷新</a></p>
+        <p><a>[2017-02-07]前端新加接口，表单初始化时增加afterload事件</a></p>
+        <p><a>[2016-11-16]可以通过设置不同报表块的刷新频率</a></p>
+    ]]></change-notes>
+    <function-recorder class="com.fr.plugin.reportRefresh.web.FormGetRefreshConfigAction"/>
+    <extra-core>
+        <WebService class="com.fr.plugin.reportRefresh.web.RefreshFormService"/>
+        <LocaleFinder class="com.fr.plugin.reportRefresh.locale.RefreshLocaleFinder"/>
+        <IOFileAttrMark class="com.fr.plugin.reportRefresh.ReportExtraRefreshAttr"/>
+    </extra-core>
+    <extra-report>
+        <JavaScriptFileHandler class="com.fr.plugin.reportRefresh.web.JavaScriptFile"/>
+    </extra-report>
+    <extra-designer>
+        <PropertyEditor class="com.fr.plugin.reportRefresh.designer.propertypane.RefreshPropertyEditor"/>
+    </extra-designer>
+  <plugin-xml-i18n resource="fr-plugin-formReportRefresh-*.jar" location="com.fr.plugin.reportRefresh.locale">
+      <name key="Plugin-Xml-I18n-FormReportRefresh_Name"/>
+      <description key="Plugin-Xml-I18n-FormReportRefresh_Description"/>
+      <change-notes key="Plugin-Xml-I18n-FormReportRefresh_Change_Notes"/>
+    </plugin-xml-i18n>
+</plugin>

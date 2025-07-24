@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>팝업모니터링</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-ui.min.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+<style>
+	.dialog-container {position:absolute;top:0;}
+	.filter-wrapper {display:inline-block;width:100%;min-width:1600px;padding:10px 20px 0 0;text-align:right;}
+	.filter-wrapper .btn {height:25px !important;}
+
+	.btn-open {line-height:10px;}
+
+	.tui-grid-tree-extra-content:not(.tui-grid-tree-button-expand):not(.tui-grid-tree-button-collapse) i {display:none;}
+
+	.custom-select {height:25px !important;}
+
+	.tree-container {width:calc(100% - 42px);margin-bottom:.25rem;}
+
+	#modal-select .modal-body > div > label {width:35px;line-height:25px;text-align:right;margin-right:3px;}
+</style>
+
+<script>
+	var page = 'POPUP';
+	var popupInfo = ${popupInfo};
+	var idx = 0;
+
+	$(document).ready(function() {
+		if ('${type}' == 'tab') {
+			$('#openNewTabBtn').remove();
+		}
+
+		var layout_tree = getTree(${layoutData}, ${layoutValue});
+		layout_tree.forEach(e => e._children.forEach(c => openLayerPopup(c)));
+	});
+
+	function msg(s) {
+		if ('${type}' == 'tab') {
+			alert(s);
+
+		} else {
+			BI.Msg.toast(s);
+		}
+	}
+
+	function getTree(data, value) {
+		var treeData = [];
+
+		data.forEach(f => {
+			if (f.type == 'CHART_POSITION') {
+				return;
+			}
+
+			if (!treeData.find(e => e.type == f.type)) {
+				treeData.push({type: f.type, title: f.type_nm, _children: []});
+			}
+
+			var values = value.filter(v => v.col_seq == f.seq);
+			var children = [{
+				title: values.map(v => v.remark).join('<br>'),
+				values: values.map(v => v.value),
+				type: f.type
+			}];
+
+			if (f.type == 'CHART_GROUP' || f.type == 'CHART_TEAM') {
+				var pstn = data.find(a => a.type == 'CHART_POSITION' && a.col == f.seq);
+				if (pstn) {
+					var pstn_values = value.filter(v => v.col_seq == pstn.seq);
+					children.push({
+						title: pstn_values.map(v => v.remark).join('<br>'),
+						values: pstn_values.map(v => v.value),
+						type: 'CHART_POSITION'
+					});
+				}
+			}
+
+			treeData.find(e => e.type == f.type)._children.push({
+				title: f.col_nm,
+				seq: f.seq,
+				type: f.type,
+				col: f.col,
+				col2: f.col2,
+				col3: f.col3,
+				col4: f.col4,
+				col5: f.col5,
+				event: true,
+				_children: children
+			});
+		});
+
+		return treeData;
+	}
+
+	/* 팝업 개수 제한 체크 */
+	function maxCountCheck(type) {
+		var popupMaxCount = ${popupMaxCount};
+		var maxCount = 0;
+
+		$(popupMaxCount).each((i, e) => {
+			if (e.comm_nm == type) {
+				maxCount = toNumber(e.comm_value);
+				return false;
+			}
+		});
+
+		if (maxCount) {
+			var count = getPopupCount(type);
+			if (count >= maxCount) {
+				msg('해당 팝업은 최대 ' + maxCount + '개 열 수 있습니다.', {level: 'error'});
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/* 조직 조회 권한 체크 */
+	function authCheck() {
+		var roleNames = ${customRoleNames};
+		var viewLevels = ${viewLevels};
+		var maxCount = 3;
+
+		$(viewLevels).each((i, e) => {
+			if (roleNames.indexOf(e.comm_value) > -1) {
+				maxCount = toNumber(e.max_count);
+				return false;
+			}
+		});
+
+		if (roleNames.indexOf('superusers') < 0) {
+			if (ts_org.ungroupedValue.length > maxCount) {
+				msg('최대 ' + maxCount + '개 선택 가능합니다', {level: 'error'});
+				ts_org.updateValue(ts_org.prevValue);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/* 상담사현황(그룹) 차트 팝업 */
+	function chart(type) {
+		if (!maxCountCheck(type)) {
+			return;
+		}
+
+		if (ts_org.ungroupedValue.length < 1) {
+			msg('조회 조건을 선택하세요');
+			return;
+		}
+
+		var users = ${userInfo};
+
+		if (!users.find(e => ts_org.ungroupedValue.includes(e.org_cd))) {
+			msg('소속 인원이 없습니다');
+			return;
+		}
+
+		if (!authCheck()) {
+			return;
+		}
+
+		var cols = {
+			type: type,
+			seq: 'T' + idx,
+			_children: [
+				{type: type, values: ts_org.ungroupedValue},
+				{type: 'CHART_POSITION', values: ts_position.value.length > 0 ? ts_position.value : ts_position.options.map(e => e.value)}
+			]
+		};
+
+		openLayerPopup(cols);
+		idx++;
+	}
+
+	/* 라우트현황, 큐모니터 팝업 */
+	function queue_popup(type) {
+		if (!maxCountCheck(type)) {
+			return;
+		}
+
+		if (ts_queue.value.length < 1) {
+			msg('조회 조건을 선택하세요');
+			return;
+		}
+
+		var cols = {
+			type: type,
+			seq: 'T' + idx,
+			_children: [{type: type, values: ts_queue.value}]
+		};
+
+		openLayerPopup(cols);
+		idx++;
+	}
+
+	/* 레이어팝업 오픈 */
+	function openLayerPopup(cols) {
+		var ps = popupInfo.find(o => o.comm_value == cols.type);
+		if (!ps) {
+			return;
+		}
+
+		var id = cols.type + '_' + cols.seq;
+		var $div = $('#' + id);
+		if ($div.length > 0) {
+			return;
+		}
+
+		$div = $('<div>', {id: id, class: 'dialog-wrapper'});
+		$div.append($('<form>', {method: 'POST', action: ps.param1, id: id + '-form', target: id + '-frame', class: 'dialog-form'}));
+		$div.append($('<iframe>', {name: id + '-frame', id: id + '-frame', class: 'dialog-frame', width: '100%', height: '100%'}));
+
+		$('.dialog-container').append($div);
+
+		$div.data('type', cols.type);
+		$div.data('title', cols.title || ps.comm_nm);
+		$div.data('width', cols.col3 || ps.param3);
+		$div.data('height', cols.col4 || ps.param4);
+		$div.attr('data-collapse', cols.col5);
+		$div.dialog({
+			title: $div.data('title'),
+			show: true,
+			closeOnEscape: false,
+			width: toNumber($div.data('width')) + 2,
+			height: toNumber($div.data('height')) + 2,
+			position: cols.col2 ?
+					  {my: 'left top', at: cols.col2, of: '.dialog-container', collision: 'none'}
+					  : {my: 'left top', at: 'left+10 top+10', of: '.dialog-container', collision: 'none'},
+			close: (ev, ui) => {
+				$(ev.target).parent().remove();
+				$(ev.target).remove();
+			}
+		});
+
+		$div.parent().resizable({
+			stop: (e, u) => {
+				$(u.element).find('.dialog-wrapper').data('width', u.size.width);
+				$(u.element).find('.dialog-wrapper').data('height', u.size.height);
+				$('.dialog-wrapper').children(':not(form):not(iframe)').remove();
+			}
+		});
+
+		if (cols.type == 'ROUTE') {
+			$div.parent().resizable('option', 'minWidth', 630);
+			$div.parent().resizable('option', 'minHeight', 200);
+		}
+
+		$div.find('form').append($('<input>', {type: 'hidden', name: 'type', value: cols.type}));
+		$div.find('form').append($('<input>', {type: 'hidden', name: 'collapse', value: cols.col5}));
+		cols._children.forEach(e => $div.find('form').append($('<input>', {type: 'hidden', name: popupInfo.find(o => o.comm_value == e.type).param2, value: e.values, 'data-type': e.type})));
+
+		$div.find('form').submit();
+	}
+
+	/* 레이아웃 저장 */
+	function save() {
+		var ft = new MultiFilter(page, '', '', 'Y', 'Y');
+
+		$('.dialog-wrapper').each((i, e) => {
+			var options = {
+				colNm: $(e).data('title'),
+				col2: $(e).dialog('option', 'position').at,
+				col3: $(e).data('width'),
+				col4: $(e).data('height'),
+				col5: $(e).attr('data-collapse')
+			};
+
+			$(e).find('form > input:not([name="type"])').each((j, ip) => {
+				if ($(e).data('type') == 'CHART_GROUP' || $(e).data('type') == 'CHART_TEAM') {
+					options.col = (i+1);
+				}
+
+				ft.addData($(ip).data('type'), $(ip).val().split(',').map(v => { return {value: v} }), options);
+			});
+		});
+
+		var res = updateMultiFilter(ft);
+
+		if ('${type}' == 'tab') {
+			if (res.result) {
+				alert('필터 저장 성공');
+
+			} else {
+				alert('필터 저장 실패');
+			}
+
+			if (res.message) {
+				alert(res.message);
+			}
+		}
+	}
+
+	/* 전체닫기 */
+	function closeAll() {
+		$('.dialog-wrapper').dialog('destroy').remove();
+	}
+
+	/* 새창열기 */
+	function openNewTab() {
+		window.open(location.pathname + '?type=tab');
+	}
+</script>
+</head>
+
+<body>
+<div class="u-container">
+	<div class="filter-wrapper">
+		<button class="btn btn-info" data-toggle="modal" data-target="#modal-select">선택조회</button>
+		<button class="btn btn-info" data-toggle="modal" data-target="#modal-filterlist">필터조회</button>
+		<button class="btn btn-info" onclick="save();">레이아웃저장</button>
+		<button class="btn btn-white" onclick="closeAll();">전체닫기</button>
+		<button class="btn btn-white" id="openNewTabBtn" onclick="openNewTab();">새창열기</button>
+	</div>
+
+	<div class="dialog-container"></div>
+
+	<!--선택조회-->
+	<div class="modal" id="modal-select" tabindex="-1">
+		<div class="modal-dialog modal-sm">
+			<div class="modal-content">
+				<div class="modal-header border-0">
+					<h5 class="modal-title">선택조회</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<div>
+						<label>조직</label>
+						<div class="tree-container custom-select" id="channel-tree" data-placeholder="- 채널 -"></div>
+						<label></label>
+						<div class="tree-container custom-select" id="org-tree" data-placeholder="- 센터/그룹/팀 -"></div>
+						<br>
+						<label>직책</label>
+						<div class="tree-container custom-select" id="position-tree" data-placeholder="- 선택 -"></div>
+						<br>
+						<div class="text-right mt-1">
+							<button class="btn btn-info" onclick="chart('CHART_GROUP');">상담사현황(그룹)</button>
+							<button class="btn btn-info" onclick="chart('CHART_TEAM');">상담사현황(팀)</button>
+						</div>
+					</div>
+					<hr>
+					<div>
+						<label>큐그룹</label>
+						<div class="tree-container custom-select" id="qgroup-tree" data-placeholder="- 선택 -"></div>
+						<br>
+						<label>큐</label>
+						<div class="tree-container custom-select mb-0" id="queue-tree" data-placeholder="- 선택 -"></div>
+						<br>
+						<div class="text-right mt-1">
+							<button class="btn btn-info" onclick="queue_popup('ROUTE');">라우트현황</button>
+							<button class="btn btn-info" onclick="queue_popup('QMONITOR');">큐모니터</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!--//선택조회-->
+
+	<!--필터조회-->
+	<div class="modal" id="modal-filterlist" tabindex="-1">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header border-0">
+					<h5 class="modal-title">필터조회</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+
+				<div class="modal-body">
+					<div id="grid-wrapper"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!--//필터조회-->
+</div>
+
+<script>
+	var channelInfo = ${channelInfo};
+	var orgTree = orgToTree(${orgInfo}); // 조직(tree)
+	var qTree = arrayToTree({data: ${qInfo}, value: 'id', name: 'name', parent: 'group'});
+
+	var ts_chn, ts_org, ts_position, ts_qgroup, ts_queue;
+	var tsFlag = false;
+
+	$('#modal-select').on('show.bs.modal', e => {
+		if (!tsFlag) {
+			// 채널 treeselect
+			ts_chn = new Treeselect({
+				parentHtmlContainer: document.querySelector('#channel-tree'),
+				value: '${myChannel}',
+				options: arrayToTree({data: channelInfo, name: 'org_name', value: 'org_name', parent: 'hirk_org_cd'}),
+				emptyText: '결과없음',
+				placeholder: '- 채널 -',
+				isSingleSelect: true,
+				searchable: false,
+				clearable: false,
+				showTags: false
+			});
+			ts_chn.srcElement.addEventListener('input', e => {
+				setOrgTree(e.detail);
+			});
+			ts_chn.srcElement.addEventListener('name-change', e => {
+				setOrgTree(e.detail);
+			});
+
+			// 센터/그룹/팀 treeselect
+			ts_org = new Treeselect({
+				parentHtmlContainer: document.querySelector('#org-tree'),
+				value: [],
+				options: [],
+				showCount: true,
+				emptyText: '결과없음',
+				placeholder: '- 센터/그룹/팀 -'
+			});
+			ts_org.srcElement.addEventListener('input', e => {
+				if (authCheck()) {
+					ts_org.prevValue = ts_org.ungroupedValue;
+				}
+			});
+
+			if (ts_chn.options.length == 1) {
+				ts_chn.disabled = true;
+			}
+			ts_chn.mount();
+
+			// 사용자직책 select
+			ts_position = new Treeselect({
+				parentHtmlContainer: document.querySelector('#position-tree'),
+				value: [],
+				options: ${position}.map(e => { return {name: e.ex_lgt_pstn_dv_nm, value: e.ex_lgt_pstn_dv_nm} }),
+				listSlotHtmlComponent: getAllSelectSlot('ts_position'),
+				emptyText: '결과없음',
+				placeholder: '- 선택 -'
+			});
+			ts_position.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_position);
+			});
+			ts_position.srcElement.addEventListener('open', e => {
+				treeselectAll(ts_position);
+			});
+			ts_position.srcElement.addEventListener('search', e => {
+				ts_position.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_position);
+				}, 400);
+			});
+
+			// 큐그룹 treeselect
+			ts_qgroup = new Treeselect({
+				parentHtmlContainer: document.querySelector('#qgroup-tree'),
+				value: [],
+				options: qTree.map(e => {
+					return {name: e.name, value: e.value, htmlAttr: e.htmlAttr}
+				}),
+				listSlotHtmlComponent: getAllSelectSlot('ts_qgroup'),
+				emptyText: '결과없음',
+				placeholder: '- 선택 -'
+			});
+			ts_qgroup.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_qgroup);
+				if (!ts_qgroup.isListOpened) {
+					setQueueTree(e.detail);
+				}
+			});
+			ts_qgroup.srcElement.addEventListener('name-change', e => {
+				if (!ts_qgroup.isListOpened) {
+					setQueueTree(e.detail);
+				}
+			});
+			ts_qgroup.srcElement.addEventListener('open', e => {
+				treeselectAll(ts_qgroup);
+			});
+			ts_qgroup.srcElement.addEventListener('close', e => {
+				setQueueTree(e.detail);
+			});
+			ts_qgroup.srcElement.addEventListener('search', e => {
+				ts_qgroup.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_qgroup);
+				}, 400);
+			});
+
+			// 큐 treeselect
+			ts_queue = new Treeselect({
+				parentHtmlContainer: document.querySelector('#queue-tree'),
+				value: [],
+				options: [],
+				showCount: true,
+				listSlotHtmlComponent: getAllSelectSlot('ts_queue'),
+				emptyText: '결과없음',
+				placeholder: '- 선택 -'
+			});
+			ts_queue.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_queue);
+			});
+			ts_queue.srcElement.addEventListener('open', e => {
+				treeselectAll(ts_queue);
+			});
+			ts_queue.srcElement.addEventListener('search', e => {
+				if (!ts_queue.searchText && !e.detail) {
+					return;
+				}
+				if (ts_queue.searchText == e.detail) {
+					return;
+				}
+
+				ts_queue.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_queue);
+				}, 400);
+			});
+
+			tsFlag = true;
+
+		} else {
+			ts_chn.updateValue('${myChannel}');
+			ts_org.updateValue([]);
+			ts_position.updateValue([]);
+			ts_qgroup.updateValue([]);
+			ts_queue.updateValue([]);
+		}
+	});
+
+	/* 조직(센터/그룹/팀) treeselect */
+	function setOrgTree(chn) {
+		var data = orgTree.filter(e => e.name == chn);
+
+		if (ts_org) {
+			ts_org.value = [];
+			ts_org.destroy();
+		}
+
+		if (data && data.length > 0) {
+			ts_org.options = data[0].children;
+			ts_org.mount();
+		}
+	}
+
+	/* 큐그룹 선택 시 큐 treeselect option 셋팅 */
+	function setQueueTree(qgroup) {
+		if (ts_queue) {
+			if (JSON.stringify(qgroup) == JSON.stringify(ts_queue.parent)) {
+				return;
+			}
+
+			ts_queue.value = [];
+			ts_queue.destroy();
+		}
+
+		var options = [];
+		var data = qTree.filter(e => qgroup.indexOf(e.value) > -1);
+		data.forEach(e => options.push(...e.children));
+
+		options.sort((a, b) => {
+			return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+		});
+
+		if (options && options.length > 0) {
+			ts_queue.parent = qgroup;
+			ts_queue.options = options;
+			ts_queue.mount();
+		}
+	}
+
+	var grid;
+
+	$('#modal-filterlist').on('show.bs.modal', e => {
+		if (grid) {
+			return;
+		}
+
+		var Grid = tui.Grid;
+		Grid.applyTheme('clean');
+		Grid.setLanguage('ko');
+
+		class btnRenderer {
+			constructor(props) {
+				this.el = document.createElement('div');
+				this.render(props);
+			}
+
+			getElement() {
+				return this.el;
+			}
+
+			render(props) {
+				if (props.grid.getValue(props.rowKey, 'event')) {
+					var $button = $('<button>', {class: 'btn btn-white btn-open', 'data-rowKey': props.rowKey, text: '열기'});
+
+					$(this.el).addClass('tui-grid-cell-content');
+					$(this.el).html($button);
+				}
+			}
+		}
+
+		grid = new Grid({
+			el: $('#grid-wrapper')[0],
+			usageStatistics: false,
+			scrollX: true,
+			scrollY: true,
+			bodyHeight: 500,
+			minBodyHeight: 50,
+			rowHeight: 'auto',
+			minRowHeight: 35,
+			copyOptions: {
+				useFormattedValue: true
+			},
+			header: {
+				height: 35,
+				align: 'left'
+			},
+			columns: [
+				{
+					header: '필터',
+					name: 'title'
+				},
+				{
+					renderer: {
+						type: btnRenderer
+					},
+					align: 'center',
+					width: 100
+				}
+			],
+			treeColumnOptions: {
+				name: 'title'
+			},
+			contextMenu: null,
+			data: getTree(${filterData}.filter(e => e.page != page), ${filterValue})
+		});
+	});
+
+	$(document).on('click', '.btn-open', function() {
+		var rowKey = $(this).attr('data-rowKey');
+		openLayerPopup(grid.getRow(rowKey));
+	});
+</script>
+</body>
+</html>

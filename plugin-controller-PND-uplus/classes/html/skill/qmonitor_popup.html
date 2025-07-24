@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>큐모니터</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+	<style>
+		html, body {height:100vh;}
+		body {padding:.5rem;}
+		#chart-container {height:100%;display:grid;align-items:center;justify-items:center;}
+		#title {width:100%;padding:.5rem;font-size:1.2em;font-weight:500;background-color:#efefef;border-radius:6px;}
+		#chart {height:250px;width:100%;}
+	</style>
+</head>
+<body class="u-container">
+	<span class="onloading" style="display:none;"></span>
+
+	<div id="chart-container" class="load-data">
+		<div id="title" class="text-center mb-2">큐모니터</div>
+		<div id="chart"></div>
+	</div>
+	<script>
+		var qInfo = {};
+		var wStat = {};
+
+		${qInfo}.forEach(e => {
+			qInfo[e.id] = e.group;
+			wStat[e.group] = {
+				205: {}, // 대기호
+				206: {}  // 최대대기시간
+			};
+		});
+
+		var winker;
+		var wProp;
+		var chart;
+
+		fnChart();
+		wsConnect();
+
+		function wsConnect() {
+			onLoading(true);
+
+			try {
+				if (!wProp) wProp = getWProperties();
+
+				winker = new winkWebSocket();
+				var eventCallback = wsCallback;
+				var logCallback   = null;
+				var consoleFlag   = true;
+
+				winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+
+			} catch (e) {
+				wsError();
+			}
+		}
+
+		function wsError() {
+			onLoading(false);
+			alert('통신 연결 실패', {level: 'error'});
+		}
+
+		function wsOpen() {
+			var dbIDs = Object.keys(qInfo).join(STA_DIM);
+			var statIDs = [205, 206].join(STA_DIM);
+
+			// socket open
+			winker.wOpenStatExt(dbIDs, statIDs);
+
+			onLoading(false);
+		}
+
+		function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+			if (eventId == WMessageType.EventServerConnected) {
+				setTimeout(function() {
+					wsOpen();
+				}, 1000);
+			}
+
+			if (eventId == WMessageType.EventStatInfo) {
+				setData(objectDBId, objectType, statId, statVal);
+			}
+
+			// onerror
+			if (eventId == WMessageType.EventError) {
+				wsError();
+			}
+		}
+
+		/*
+			websocket callback function
+		*/
+		function setData(dbID, type, statId, statVal) {
+			var group = qInfo[dbID];
+			wStat[group][statId][dbID] = toNumber(statVal);
+
+			var inqueue = [];		// 대기호
+			var maxwaittime = [];	// 최대대기시간
+
+			Object.values(wStat).forEach(stat => {
+				inqueue.push(Object.values(stat['205']).reduce((a, b) => a + b, 0));
+				maxwaittime.push(Object.values(stat['206']).sort((a, b) => b - a)[0]);
+			});
+
+			chart.setOption(
+				{
+					tooltip: {
+						trigger: 'axis',
+						axisPointer: {
+							type: 'shadow'
+						},
+						formatter: data => {
+							var e = data[0];
+							var time = toNumber(e.dimensionNames[e.dataIndex]) < 1 ? '-' : getHis(toNumber(e.dimensionNames[e.dataIndex]));
+							return e.name + '<br>' + e.marker + e.seriesName + ' &nbsp; '
+								 + '<span style="font-weight:bold">' + e.data + '</span>' + '<br>최대대기시간 &nbsp; '
+								 + '<span style="font-weight:bold">' + time + '</span>';
+						}
+					},
+					series: {
+						name: '대기호',
+						type: 'bar',
+						label: {
+							formatter: e => {
+								var time = toNumber(e.dimensionNames[e.dataIndex]) < 1 ? '' : getHis(toNumber(e.dimensionNames[e.dataIndex]));
+								return e.data + '\n{subLabel|' + time + '}'
+							},
+							show: true,
+							align: 'center',
+							textStyle: {
+								fontWeight: 'bold',
+								fontSize: 15,
+								rich: {
+									subLabel: {
+										fontWeight: 'normal',
+										fontStyle: 'italic',
+										height: 25
+									}
+								}
+							}
+						},
+						emphasis: {
+							focus: 'series'
+						},
+						data: inqueue,
+						dimensions: maxwaittime
+					}
+				}
+			);
+		}
+
+		function fnChart(c, v) {
+			var dom = document.getElementById('chart');
+			chart = echarts.init(dom);
+
+			var option = {
+				textStyle: {
+					fontFamily: 'LG Smart'
+				},
+				grid: {
+					top: 20,
+					bottom: 10,
+					containLabel: true
+				},
+				xAxis: [
+					{
+						axisLabel: {
+							rotate: 60
+						},
+						type: 'category',
+						data: Object.keys(wStat)
+					}
+				],
+				yAxis: [
+					{
+						type: 'value'
+					}
+				]
+			};
+
+			if (option && typeof option === 'object') {
+				chart.setOption(option);
+			}
+
+			window.onresize = function() {
+				chart.resize();
+			};
+		}
+
+		/* 필터 저장용 */
+		opener.QUEUE.popupCols.MONITOR.push(Object.keys(wStat).join());
+
+		$(window).on('beforeunload', function() {
+			opener.QUEUE.popupCols.MONITOR = opener.QUEUE.popupCols.MONITOR.filter(e => e != Object.keys(wStat).join());
+		});
+	</script>
+</body>
+</html>

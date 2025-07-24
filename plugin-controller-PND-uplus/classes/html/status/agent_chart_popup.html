@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>상담사현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+	<style>
+		html, body {height:100vh;}
+		#chart-container {height:100%;display:grid;align-items:center;justify-items:center;grid-template-columns:repeat(auto-fill, minmax(330px, 1fr));}
+		.chart {height:300px;width:320px;display:inline-flex;padding:5px 10px;border:1px solid #ddd;border-radius:10px;margin:7px;}
+	</style>
+</head>
+<body class="u-container">
+	<span class="onloading" style="display:none;"></span>
+
+	<div id="chart-container" class="load-data"></div>
+
+	<script>
+		var grpInfo = {};
+		${grpInfo}.forEach(e => grpInfo[e.org_cd] = e.org_name); // {grp_cd: grp_name, ...}
+
+		var userGroups = {};
+		${userInfo}.forEach(e => userGroups[e.agid] = e.grp_cd); // {agid: grp_cd, ...}
+
+		var winker;
+		var wProp;
+		var wStat = {};
+
+		Object.keys(grpInfo).forEach(grpCd => {
+			$('#chart-container').append($('<div>', {class: 'chart', id: 'chart_' + grpCd}));
+			wStat[grpCd] = {};
+
+			fnChart(grpCd);
+		});
+
+		wsConnect();
+
+		function wsConnect() {
+			onLoading(true);
+
+			try {
+				if (!wProp) wProp = getWProperties();
+
+				winker = new winkWebSocket();
+				var eventCallback = wsCallback;
+				var logCallback   = null;
+				var consoleFlag   = true;
+
+				winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+
+			} catch (e) {
+				wsError();
+			}
+		}
+
+		function wsError() {
+			onLoading(false);
+			alert('통신 연결 실패');
+		}
+
+		function wsOpen() {
+			var dbIDs = Object.keys(userGroups).join(STA_DIM);
+			var statIDs = [115, 116].join(STA_DIM);
+
+			// socket open
+			winker.wOpenStatExt(dbIDs, statIDs);
+
+			onLoading(false);
+		}
+
+		function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+			if (eventId == WMessageType.EventServerConnected) {
+				setTimeout(function() {
+					wsOpen();
+				}, 1000);
+			}
+
+			if (eventId == WMessageType.EventStatInfo) {
+				setData(objectDBId, objectType, statId, statVal);
+			}
+
+			// onerror
+			if (eventId == WMessageType.EventError) {
+				wsError();
+			}
+		}
+
+		/*
+			websocket callback function
+		*/
+		function setData(dbID, type, statId, statVal) {
+			var grpCd = userGroups[dbID];
+
+			if (!wStat[grpCd][dbID]) {
+				wStat[grpCd][dbID] = {115: '', 116: '', status: ''};
+			}
+
+			wStat[grpCd][dbID][statId] = statVal;
+
+			// 현재상태(115)가 Call 관련 상태인 경우, 해당 상태가 우선이 된다
+			var stat115 = wStat[grpCd][dbID]['115'];
+			if (5 < Number(stat115)) {
+				wStat[grpCd][dbID].status = stat115;
+			} else {
+				wStat[grpCd][dbID].status = statVal;
+			}
+
+			var data = [];
+			var login = Object.values(wStat[grpCd]).filter(e => (e.status != '0' && e.status != '1')); // 로그인 (알수없음(0), 로그아웃(1)을 제외한 나머지)
+
+			if (login.length > 0) {
+				data.push({name: WAgentStatus['3'].text,  value: login.filter(e => e.status == '3').length,  itemStyle: {color: '#b3b366'}}); // 대기
+				data.push({name: WAgentStatus['4'].text,  value: login.filter(e => e.status == '4').length,  itemStyle: {color: '#6ec4c8'}}); // 이석
+				data.push({name: WAgentStatus['5'].text,  value: login.filter(e => e.status == '5').length,  itemStyle: {color: '#f7dc6f'}}); // 후처리
+				data.push({name: WAgentStatus['14'].text, value: login.filter(e => e.status == '14').length, itemStyle: {color: '#f36666'}}); // OB
+				data.push({name: WAgentStatus['15'].text, value: login.filter(e => e.status == '15').length, itemStyle: {color: '#6666e1'}}); // IB
+				data.push({name: WAgentStatus['99'].text, value: login.filter(e => ['3','4','5','14','15'].indexOf(e.status) < 0).length, itemStyle: {color: '#cccccc'}}); // 위 5개(대기~IB) 상태를 제외한 나머지
+			}
+
+			window['chart_' + grpCd].setOption(
+				{
+					title: {
+						subtext: '로그인 ' + login.length
+					},
+					series: {
+						data: data
+					}
+				}
+			);
+		}
+
+		/* 차트 */
+		function fnChart(grpCd) {
+			var dom = document.getElementById('chart_' + grpCd);
+			window['chart_' + grpCd] = echarts.init(dom);
+
+			var option = {
+				textStyle: {
+					fontFamily: 'LG Smart'
+				},
+				title: {
+					text: '{main|' + grpInfo[grpCd] + '}',
+					textStyle: {
+						rich: {
+							main: {
+								fontSize: 15,
+								fontWeight: '500',
+								backgroundColor: '#efefef',
+								align: 'center',
+								width: 300,
+								height: 30,
+								borderRadius: 5
+							}
+						}
+					},
+					subtext: '로그인 0',
+					subtextStyle: {
+						fontSize: 15,
+						fontWeight: '500'
+					},
+					left: 'center'
+				},
+				tooltip: {
+					trigger: 'item'
+				},
+				legend: {
+					orient: 'horizontal',
+					left: 'center',
+					bottom: 10,
+					itemWidth: 10
+				},
+				series: [
+					{
+						type: 'pie',
+						radius: '90%',
+						top: 'middle',
+						emphasis: {
+							itemStyle: {
+								shadowBlur: 10,
+								shadowOffsetX: 0,
+								shadowColor: 'rgba(0, 0, 0, 0.5)'
+							}
+						},
+						label: {
+							formatter: '{b} {c}',
+							position: 'outer',
+							alignTo: 'labelLine',
+							bleedMargin: 0,
+							distanceToLabelLine: 0,
+							overflow: 'break'
+						}
+					}
+				]
+			};
+
+			if (option && typeof option === 'object') {
+			  window['chart_' + grpCd].setOption(option);
+			}
+
+			window.addEventListener('resize', window['chart_' + grpCd].resize);
+		}
+
+		/* 필터 저장용 */
+		if (!opener.popupCols) opener.popupCols = [];
+		opener.popupCols.push(Object.keys(grpInfo).join());
+
+		$(window).on('beforeunload', function() {
+			opener.popupCols = opener.popupCols.filter(e => e != Object.keys(grpInfo).join());
+		});
+	</script>
+</body>
+</html>

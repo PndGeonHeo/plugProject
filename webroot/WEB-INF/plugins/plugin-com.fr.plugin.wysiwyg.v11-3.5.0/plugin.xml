@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<plugin>
+    <id>com.fr.plugin.wysiwyg.v11</id>
+    <name><![CDATA[FineVis Data Visualization]]></name>
+    <active>yes</active>
+    <version>3.5.0</version>
+    <env-version>11.0~11.0</env-version>
+    <jartime>2023-11-14</jartime>
+    <vendor>finereport.chart</vendor>
+    <function-points>
+        <function-point>26</function-point>
+        <function-point>27</function-point>
+        <function-point>47</function-point>
+        <function-point>52</function-point>
+        <function-point>53</function-point>
+        <function-point>54</function-point>
+        <function-point>55</function-point>
+        <function-point>56</function-point>
+        <function-point>57</function-point>
+    </function-points>
+    <description><![CDATA[FineVis data visualization tool (FVS) meets the 3D visualization needs of PC/mobile cockpits and dashboards.]]></description>
+   <change-notes><![CDATA[
+	<p>[2025-04-29]<a>Optimized the GIS base map configuration for the 3D city ground background. Optimized the 3D roaming animation configuration; Optimized the FVS template editing status; Optimized the FVS mobile flow layout; Supported automatic scrolling for component layer lists.</a></p>
+	<p>[2025-04-16]<a>Fixed some known issues</a></p>
+	<p>[2025-04-02]<a>Added a JS API for public viewing angles in 3D components; Allowed you to undo and redo 3D camera settings and some environment settings; Optimized 3D roaming animation viewpoint rules; Allowed you to copy events and actions by right-clicking; Optimized the component paste logic; Allowed you to create component copies; Optimized the initial calculation request of the drop-down box; Supported shortcut keys of component level movement and canvas zoom to 100%; Widened the date range box on the query panel and allowed shortcut buttons to be automatically wrapped when they cannot be displayed in one row; Allowed you to set vertical alignment for title components and time components; Allowed you to directly drag a new component outside the canvas for component creation.</a></p>
+	<p>[2025-03-21]<a>Fixed some known issues</a></p>
+	<p>[2025-03-11]<a>3D Allowed GLB models to be replaced; Allowed you to undo/restore model node renaming and hiding/displaying; Allowed you to undo/restore GLB model attribute configuration; Added the date range widget; Added the Y (year) and Y-Q (year-quarter) formats for the date time widget; Optimized the calculation request merging logic; Supported the format painter function for rich text components; Allowed you to use icons in dynamic values of rich text components; Allowed you to press Shift and drag any control point to scale a component at the locked ratio; Allowed you to press Shift and move a component linearly; Allowed you to sort options in drop-down boxes and button groups; Optimized the file storage path; Supported the POST request method for web links/pop-up boxes; Converted the FRM mobile adaptation function to be one in FVS; Supported the zoom-in function for mobile charts/tables.</a></p>
+	<p>[2025-02-21]<a>Fixed some known issues</a></p>
+	<p>[2025-01-24]<a>Supported template parameters for scene maps;Fixed some known issues.</a></p>
+	<p>[2025-01-15]<a>Fixed some known issues</a></p>
+	<p>[2025-01-02]<a>Optimized FVS 3D component model list interaction; Supported separate display for components; Allowed components in the canvas to be locked and unlocked; Optimized the component selection logic; Optimized the canvas logic; Modified the theme management logic; Supported lazy loading for mobile tables; Allowed dynamic values to be inserted into images, online videos, surveillance videos, iframes, and webpage links/pop-up boxes.</a></p>
+	<p>[2024-12-13]<a>Fixed some known issues.</a></p>
+	<p>[2024-12-02]<a>Supported quick replacement for FVS template datasets; Supported toolbar floating and navigation positioning on mobile terminals.</a></p>
+	<p>[2024-11-18]<a>Fixed some known issues</a></p>
+	<p>[2024-11-08]<a>Fixed some known issues.</a></p>
+	<p>[2024-11-04]<a>Allowed you to convert FRM into FVS; Added the API to cancel component hover; Optimized built-in FVS fonts; Optimized pagination bar thumbnails; Optimize resource logics.</a></p>
+	<p>[2024-10-11]<a>Fixed some known issues</a></p>
+	<p>[2024-09-18]<a>Optimized 3D model animation management and application; Optimized FVS component interaction events; Allowed tab pages to have duplicate names; Supported widget classification and merging; Adjusted the dashboard framework; Added pinch-to-zoom configuration items for mobile table components.</a></p>
+	<p>[2024-08-30]<a>Fixed some known issues.</a></p>
+	<p>[2024-08-19]<a>Supported flow layout on mobile terminals, and disabled automatic carousel for tab components by default.</a></p>
+    <p>[2024-08-16]<a>Fix the security problem.</a></p>
+	<p>[2024-08-12]<a>Fixed some known issues.</a></p>
+    <p>[2024-08-04]<a>Fix the security problem;Adapted to security changes in the FR 11.0.29 version.</a></p>
+    <p>[2024-07-23]<a>Fixed some known issues.</a></p> 
+	<p>[2024-07-09]<a>Merged calculation requests; Optimized functions such as the interaction style of mobile charts, and the outer display of contents prompted by mobile webpage boxes.</a></p>
+	<p>[2024-07-02]<a>Optimized the interaction of the resource reuse center.</a></p>
+    <p>[2024-06-24]<a>Fixed some known issues.</a></p>
+    <p>[2024-06-23]<a>Allowed you to preview templates in the performance mode; Supported top styles on the mobile query panel; Kept the entire page unrefreshed if dynamic parameters are triggered in a table; Split bound parameters and component names for widgets; Fixed some known issues.</a></p>
+	<p>[2024-06-14]<a>Fixed some known issues.</a></p>
+	<p>[2024-06-07]<a>Allowed you to configure template/component loading effects; Added expansion components; Allowed you to set dynamic values for titles and rich texts; Added more color adjustment items (saturation, contrast, and brightness) for images; Allowed you to refresh only data for 3D components. </a></p>
+	<p>[2024-05-22]<a>Fixed some known issues.</a></p>
+    <p>[2024-04-29]<a>Supported animation switchover disabling for tabs on mobile terminals, lazy tab calculation, and FVS template initialization calculation cache; added the FVS theme management function; optimized pop-up interaction for PCs and mobile terminals.</a ></p>
+	<p>[2024-04-15]<a>Optimized the mobile app API; Fixed some known issues.</a></p>
+	<p>[2024-04-01]<a>Added the linked dataset name modification of the FVS component after the dataset name is modified. Added the deletion function for the graphic button in the radio button group. Replaced HTTP with WebSocket to allow multiple monitoring videos to be played at the same time. Optimized the FVS component error prompt. Allowed you to favorite the mobile FVS toolbar.</a></p>
+	<p>[2024-03-18]<a>Added an Enable Fog option for the 3D City Scene component. Optimized the chart storage, the calculation logic of camera panningSensibility, and the model selection logic for binding the model and the viewing angle.</a></p>
+	<p>[2024-03-04]<a>Enabled multisample anti-aliasing (MSAA) for 3D components by default. Optimized the interactive effect by binding the viewing angle with the model. Added page-related JS APIs for templates, Tab components, and tables.</a></p>
+	<p>[2024-02-04]<a>Modified the logic of pause on hover and fixed some known problems.</a></p>
+    <p>[2024-01-30]<a>Fixed the problem of external parameter passing failure.</a></p>
+    <p>[2024-01-22]<a>Supported Task Schedule; transformed the original Carousel component into a Tab component; added a query button; used IndexedDB for caching 3D GLB files; optimized the 3D custom viewing angle and the roaming animation; reconstructed some functions.</a></p>
+    <p>[2024-01-09]<a>Fixed 3D background issues and the problem that the 3D empty scene cannot be saved.</a></p>
+    <p>[2023-01-02]<a>Added a Show/Hide click event and a widget query panel. Optimized the label and alert effect of 3D components and the list interactive performance of the editor. Supported the preview of picture and video materials. Fixed template damage issues.</a></p>
+	<p>[2023-12-18]<a>Added an Absolute Canvas component. Optimized to memorize the tag selection in My Resource. Expanded the style of Date widget, Drop-down Box, and Drop-down checkbox.</a></p>
+	<p>[2023-12-04]<a>Added a time component. Allowed pausing an object for which the Auto Play/Rotation has been enabled. Supported the selection of components in canvas by layer. Allowed adding a camera viewing angle in 3D scenes and setting the vertical angle and movement range of the camera in the 3D component.</a></p>
+	<p>[2023-11-21]<a>Allowed to show/hide page settings, and supported full-screen display of the canvas. Added the option to switch between desktop and mobile layouts. Allowed to undo and restore some operations on 3D models such as moving, rotating, and scaling. Enhanced the operability of 3D models. Fixed some known problems.</a></p>
+	<p>[2023-11-06]<a>Optimized the performance of 3D city building generation and local video detection. Added width and height percentage setting for showDialog API and a search function for the Font component. Enabled the creation of a visualization dashboard by double-clicking the canvas of the required size. Optimized some performance. Fix some known problems.</a></p>
+	<p>[2023-11-06]<a>Optimized the performance of 3D city building generation and local video detection. Added width and height percentage setting for showDialog API and a search function for the Font component. Enabled the creation of a visualization dashboard by double-clicking the canvas of the required size. Optimized some performance. Fix some known problems.</a></p>
+	<p>[2023-11-06]<a>Optimized the performance of 3D city building generation and local video detection. Added width and height percentage setting for showDialog API and a search function for the Font component. Enabled the creation of a visualization dashboard by double-clicking the canvas of the required size. Optimized some performance. Fix some known problems.</a></p>
+	<p>[2023-10-23]<a>Supported the export of single chart components in FVS dashboards, supported the setting of border line for components and widgets, supported the setting of font for widgets, supported the use of view trees and dropdown trees on mobile terminals, supported the configuration of traction line for popup windows using showDialog, added an API that can be used to get component location, and added an API which enabled the custom model to follow popup window; Optimized 3D label performance, 3D city tilemap, and page copy and paste function; Solved known bugs of Marquee.</a></p>
+	<p>[2023-09-27]<a>Supported 3D background; Component could be refreshed as data source changed; Disallowing full selection could be set for multi-select widgets; Supported navigation in template preview; Supported background color during page loading; Chart components could bind cell data; Tables could be exported by using JSAPI; FVS templates could be exported as PDF, PPTX, and PNG by adding parameters after URLs or by using JSAPI; Optimized the functional structure of 3D components; Optimized model upload management; Optimized pop-up box style; Optimized FVS carousel tab style.</a></p>
+	<p>[2023-09-15]<a>Fixed problems such as the API for scene map jumping does not work</a></p>
+	<p>[2023-09-08]<a>Improved the ten-segment line in the carousel 3D combination map and fixed some known problems.</a></p>
+	<p>[2023-08-28]<a>Fixed the position settings of the carousel button</a></p>
+	<p>[2023-08-25]<a>Supported copying components across templates and copying various resources across pages, supported customizing roaming animation in 3D scenes, supported binding cell data to chart components, supported exporting extended chart components, supported uploading models in batches, supported lazy loading of carousel components, and merged configuration items into FVS template settings</a></p>
+	<p>[2023-08-14]<a>Optimized the limit for uploading GeoJSON 3D city. Added an exitFullscreen interface. Some components supported downgrade rendering. Marquee supported cell charts.</a></p>
+	<p>[2023-08-04]<a>Fix the security problem</a></p>
+	<p>[2023-07-31]<a>Added functions such as template data alert, table component zooming in, and drop-down tree and view tree widgets; Supported zooming in by box selection when previewing a template; Supported downloading online zip file in the resource center to local; Optimized the logic of the component corner label </a></p>
+	<p>[2023-07-14]<a>Supported mobile preview, 3D components (except for Unity components), added frame rate detection, added smooth rendering mode, supported RTSP and RTMP protocols for surveillance videos, added template watermark settings, supported setValue for tables, supported communication with pages for Iframe component, and optimized the closeDialog interface</a></p>
+    <p>[2023-07-03]<a>Optimized GeoJSON detection rules; Added interfaces for new data layer: subscribeMarkerData, updateMarkerData; Supported inserting formulas in web links of pop-up box and monitoring video; Supported exporting templates</a></p>
+    <p>[2023-06-16]<a>Optimized the data label rendering effect of 3D components, added table sorting function, supported parameter linkage during paging, supported getValueJSAPI for title components, allowed that adding 3D city model and customized model components only refreshes data API</a></p>
+    <p>[2023-06-02]<a>Optimize the automatic simplification logic of the scene map, support the JSAPI of the chart component, support cross-template copy and paste for pagination, add FRM application version management, optimize the FTP preview mechanism, and fix some known problems </a></p>
+    <p>[2023-05-22]<a>Fix template preview error in Tomcat</a></p>
+    <p>[2023-05-19]<a>Support opening multiple FVS templates in the designer; support remoteEvaluate API; optimize 3D model motion API and focus API; 3D model environment reflection is disabled by default; control data dictionary pop-up window is changed to front-end implementation</a></p>
+    <p>[2023-05-05]<a>Fixed jquery compatibility issues</a></p>
+    <p>[2023-04-27]<a>Added fvs hyperlinks to open new tabs in the platform, supported dynamic values for parameter passing in webpage frames, preserved the dynamic relationship between components when copying components, enabled default JSAPI when moving to the next page; Optimized unreasonable tips for Unity component resources</a></p>
+    <p>[2023-04-14]<a>Added 3D component model control JSAPI, productization of marquee;FVS component supports alt rapid copy;Removed loading of component monitoring refreshing</a></p>
+    <p>[2023-03-31]<a>Added canvas auxiliary line; Added JSAPI to move to the next page in table component; Optimized shortcut key paste; Fixed some known problems</a></p>
+    <p>[2023-03-17]<a>Added 3D time system, two-way fitting adaptive prompt; optimized 3D model lighting design, component copy and paste logic; support 83 version of chrome</a></p>
+    <p>[2023-03-03]<a>Fixed some known issues</a></p>
+    <p>[2023-02-17]<a>Added resource reuse, support for model and light source selection, support for copying and pasting FRM extended charts to FVS</a></p>
+    <p>[2023-01-13]<a>Added 3D filters, support for copying FRM table and chart components to FVS; optimize color interval components</a></p>
+    <p>[2023-01-09]<a>BUGFixed the BUG of the simple style effect of the 3D city</a></p>
+    <p>[2022-12-29]<a>Custom model components add dynamic ground effects, table components support pagination and export, and widget filtering takes effect on 3D components; optimize the custom model environment and light source shadow effects</a></p>
+    <p>[2022-12-12]<a>Add commercial free fonts, support tab block scene</a></p>
+    <p>[2022-11-28]<a>Optimize hover style</a></p>
+    ]]></change-notes>
+
+    <function-recorder class="com.fr.plugin.wysiwyg.DuchampTemplate"/>
+
+    <lifecycle-monitor class="com.fr.plugin.wysiwyg.PluginLifecycleMonitor"/>
+
+    <extra-core>
+        <IOFileAttrMark class="com.fr.plugin.wysiwyg.version.TemplateVersionAttrMark"/>
+        <LocaleFinder class="com.fr.plugin.wysiwyg.locale.DesignerLocaleFinder"/>
+        <LocaleFinder class="com.fr.plugin.wysiwyg.locale.LocaleFinder"/>
+        <LocaleFinder class="com.fr.plugin.wysiwyg.reuse.locale.ReuseLocaleFinder"/>
+        <LocaleFinder class="com.fr.plugin.wysiwyg.chart.locale.EChartFinder"/>
+        <LocaleFinder class="com.fr.plugin.transform.locale.LocaleFinder"/>
+        <LocaleFinder class="com.fr.plugin.app.reuse.locale.ReuseApplicationLocaleFinder"/>
+    </extra-core>
+    <extra-decision>
+        <ControllerRegisterProvider class="com.fr.plugin.wysiwyg.web.controller.ControllerRegister"/>
+        <SystemOptionProvider class="com.fr.plugin.transform.web.TransformToolOption"/>
+        <Preview class="com.fr.plugin.wysiwyg.web.preview.FvsPreview"/>
+    </extra-decision>
+
+    <extra-report>
+        <ReportSupportedFileProvider class="com.fr.plugin.wysiwyg.report.ReportSupportDuchampFile"/>
+        <ExportOperateProvider class="com.fr.plugin.wysiwyg.web.export.DuchampChartExportOperate"/>
+    </extra-report>
+
+    <extra-designer>
+        <MenuHandler class="com.fr.plugin.wysiwyg.menu.DuchampTemplateMenuHandler"/>
+        <MenuHandler class="com.fr.plugin.wysiwyg.menu.reuse.ReuseResourceManagerMenuHandler"/>
+        <MenuHandler class="com.fr.plugin.wysiwyg.menu.reuse.UpdateReuseResourceMenuHandler"/>
+        <MenuHandler class="com.fr.plugin.wysiwyg.menu.theme.ThemeManagerMenuHandler"/>
+        <DesignerApp class="com.fr.plugin.wysiwyg.report.DuchampApp"/>
+        <MenuHandler class="com.fr.plugin.wysiwyg.menu.DuchampLoadEventMenuHandler"/>
+        <ReportSupportedFileUIProvider class="com.fr.plugin.wysiwyg.report.DuchampSupportedFileUIImpl"/>
+        <DefaultValueAdjustProvider class="com.fr.plugin.wysiwyg.report.DuchampDefaultValueAdjustImpl"/>
+    </extra-designer>
+
+    <extra-chart>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.u3d.geoland.UGeoLandChartType"
+                           chartID="DUCHAMP_UGeoLandChart" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.globe.bar3D.Bar3DOnGlobeChartType"
+                           chartID="MAP_ECHARTS_BAR_3D_ON_GLOBE" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.globe.scatter3D.Scatter3DOnGlobeChartType"
+                           chartID="MAP_ECHARTS_SCATTER_3D_ON_GLOBE" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.globe.lines3D.Lines3DOnGlobeChartType"
+                           chartID="MAP_ECHARTS_LINES_3D_ON_GLOBE" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.map.slideshowmap.SlideShowMapChartType"
+                           chartID="SLIDE_SHOW_MAP" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.map.groupmap.GroupMapChartType"
+                           chartID="GROUP_MAP" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.meter.MeterChartType"
+                           chartID="METER_LUMOS" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.fluid.FluidChartType"
+                           chartID="WATER_FLOW" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.pixelgrid.PixelGridChartType"
+                           chartID="PIXEL_GRID" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.kpi.KPI1ChartType"
+                           chartID="KPI_CARD_SHINE" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.kpi.KPI2ChartType"
+                           chartID="KPI_CARD_ELECTRON" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.particlecounter.ParticleCounterChartType"
+                           chartID="PARTICLE_COUNTER_CHART" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.time.TimeGearChartType"
+                           chartID="TIME_CHART_GEAR" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.column.arccolumn.ArcColumnChartType"
+                           chartID="ARC_COLUMN_CHART" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.column.shapecolumn.ShapeColumnChartType"
+                           chartID="SHAPE_COLUMN_CHART" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.column.carouselbar.CarouselBarChartType"
+                           chartID="CAROUSEL_BAR_CHART" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.pie.carouselpie.CarouselPieChartType"
+                           chartID="CAROUSEL_PIE_CHART" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.catalog.CatalogChartType"
+                           chartID="CATALOG_GEAR" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.wisdomtree.WisdomTreeElectronChartType"
+                           chartID="WISDOM_TREE_ELECTRON" showInDesigner="false"/>
+        <ChartTypeProvider class="com.fr.plugin.wysiwyg.chart.wisdomtree.WisdomTreeModelChartType"
+                           chartID="WISDOM_TREE_MODEL" showInDesigner="false"/>
+
+    </extra-chart>
+
+    <extra-chart-designer>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.u3d.designer.geoland.UGeoLandChartTypeUI"
+                             chartID="DUCHAMP_UGeoLandChart"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.globe.Bar3DOnGlobeChartTypeUI"
+                             chartID="MAP_ECHARTS_BAR_3D_ON_GLOBE"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.globe.Scatter3DOnGlobeChartTypeUI"
+                             chartID="MAP_ECHARTS_SCATTER_3D_ON_GLOBE"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.globe.Lines3DOnGlobeChartTypeUI"
+                             chartID="MAP_ECHARTS_LINES_3D_ON_GLOBE"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.slideshowmap.SlideShowMapChartTypeUI"
+                             chartID="SLIDE_SHOW_MAP"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.groupmap.GroupMapChartTypeUI"
+                             chartID="GROUP_MAP"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.meter.MeterChartTypeUI"
+                             chartID="METER_LUMOS"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.fluid.FluidChartTypeUI"
+                             chartID="WATER_FLOW"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.pixelgrid.PixelGridChartTypeUI"
+                             chartID="PIXEL_GRID"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.kpi.KPI1ChartTypeUI"
+                             chartID="KPI_CARD_SHINE"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.kpi.KPI2ChartTypeUI"
+                             chartID="KPI_CARD_ELECTRON"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.particlecounter.ParticleCounterChartTypeUI"
+                             chartID="PARTICLE_COUNTER_CHART"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.time.TimeGearChartTypeUI"
+                             chartID="TIME_CHART_GEAR"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.arccolumn.ArcColumnChartTypeUI"
+                             chartID="ARC_COLUMN_CHART"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.shapecolumn.ShapeColumnChartTypeUI"
+                             chartID="SHAPE_COLUMN_CHART"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.carouselbar.CarouselBarChartTypeUI"
+                             chartID="CAROUSEL_BAR_CHART"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.pie.carouselpie.CarouselPieChartTypeUI"
+                             chartID="CAROUSEL_PIE_CHART"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.catalog.CatalogChartTypeUI"
+                             chartID="CATALOG_GEAR"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.wisdomtree.WisdomTreeElectronChartTypeUI"
+                             chartID="WISDOM_TREE_ELECTRON"/>
+        <ChartTypeUIProvider class="com.fr.plugin.wysiwyg.chart.designer.wisdomtree.WisdomTreeModelChartTypeUI"
+                             chartID="WISDOM_TREE_MODEL"/>
+    </extra-chart-designer>
+  <plugin-xml-i18n resource="plugin-com.fr.plugin.wysiwyg.v11-" location="com.fr.plugin.wysiwyg.designer.i18n">
+      <name key="Plugin-Xml-I18n-FineVis_Name"/>
+      <description key="Plugin-Xml-I18n-FineVis_Description"/>
+      <change-notes key="Plugin-Xml-I18n-FineVis_Change_Notes"/>
+    </plugin-xml-i18n>
+
+</plugin>

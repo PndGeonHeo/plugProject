@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap.css" />
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/loginPackage/CommLoginPage/default/css/style.css" />
+    <script type="text/javascript" src="${fineServletURL}/file?path=/bootstrap.bundle.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/loginPackage/CommLoginPage/default/js/login.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/js/sha256.min.js"></script>
+    <style>
+
+    </style>
+</head>
+
+<body>
+<div class="text-wrap _text fr-view">
+<!--    /** 로고 위 상단 문구 단순 텍스트 수정이니 변경해서 쓰세요!*/-->
+    <div class="fadeup-animation">
+        <p style="line-height: 1; text-align: center;">
+        <span style="font-size: 40px; color: rgb(255, 255, 255); font-weight: 300;">
+            <strong>FineReport</strong>
+        </span>
+        </p>
+        <p style="line-height: 1; text-align: center;">
+            <span style="font-size: 18px; color: rgb(255, 255, 255); font-weight: 300;">
+                <strong>비즈니스의 문제를 해결해주는<br>리포팅 및 대시보드 솔루션</strong></span>
+        </p>
+    </div>
+</div>
+<div class="header">
+    <img class="loginLogo" src="${fineServletURL}/view/report?op=resource&resource=/loginPackage/CommLoginPage/default/image/login_logo.png" alt="로고">
+    <h1></h1>
+</div>
+
+<div class="tab-container">
+    <div class="tabs" id="tabs"></div>
+    <div id="contents"></div>
+</div>
+
+<script>
+    var resultData = ${resultJson};
+    init(resultData);
+</script>
+
+</body>
+</html>

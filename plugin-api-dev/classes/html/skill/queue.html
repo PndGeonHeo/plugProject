@@ -1,0 +1,671 @@
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+<script>
+    var Grid = tui.Grid;
+    Grid.applyTheme('clean');
+    Grid.setLanguage('ko');
+
+    var QUEUE = {
+        page: 'QUEUE',
+        data: ${qInfo},
+        listCols: [],
+        popupCols: {
+            ROUTE: [],
+            MONITOR: []
+        },
+        groupFlag: true,
+        grid: null,
+        gridOptions: {
+            scrollX: false,
+            scrollY: false,
+            minBodyHeight: 40,
+            minRowHeight: 40,
+            rowHeight: 40,
+            usageStatistics: false,
+            header: {
+                height: 40,
+                align: 'right',
+                columns: [
+                    {name: 'name', align: 'left'}
+                ]
+            },
+            columnOptions: {
+                resizable: true
+            },
+            columns: [
+                {
+                    header: 'id',
+                    name: 'id',
+                    hidden: true
+                },
+                {
+                    header: '큐그룹',
+                    name: 'name',
+                    align: 'left',
+                    sortable: true,
+                    width: 200
+                },
+                {
+                    header: '인입호',
+                    name: '211',
+                    align: 'right',
+                    sortable: true,
+                    formatter: function(data) {
+                        return data.value.toLocaleString();
+                    }
+                },
+                {
+                    header: '대기호',
+                    name: '205',
+                    align: 'right',
+                    sortable: true,
+                    formatter: function(data) {
+                        return data.value.toLocaleString();
+                    }
+                },
+                {
+                    header: '포기호',
+                    name: '221',
+                    hidden: true,
+                    align: 'right',
+                    sortable: true,
+                    formatter: function(data) {
+                        return data.value.toLocaleString();
+                    }
+                },
+                {
+                    header: '응답호',
+                    name: '212',
+                    align: 'right',
+                    sortable: true,
+                    formatter: function(data) {
+                        return data.value.toLocaleString();
+                    }
+                },
+                {
+                    header: '20초이내응답호',
+                    name: '215',
+                    hidden: true
+                },
+                {
+                    header: '응답률 (%)',
+                    name: 'acdpt',
+                    align: 'right',
+                    sortable: true,
+                    comparator: function(valueA, valueB, rowA, rowB) {
+                        var a = toNumber((rowA['212'] / rowA['211']) * 100);
+                        var b = toNumber((rowB['212'] / rowB['211']) * 100);
+                        return a - b;
+                    },
+                    formatter: function(data) {
+                        var value = (data.row['212'] / data.row['211']) * 100; // (응답호/인입호) * 100
+                        return toNumber(value).toFixed(1) + '%';
+                    }
+                },
+                {
+                    header: 'SL (%)',
+                    name: 'sl',
+                    align: 'right',
+                    sortable: true,
+                    comparator: function(valueA, valueB, rowA, rowB) {
+                        var a = toNumber((rowA['215'] / rowA['211']) * 100);
+                        var b = toNumber((rowB['215'] / rowB['211']) * 100);
+                        return a - b;
+                    },
+                    formatter: function(data) {
+                        var value = (data.row['215'] / data.row['211']) * 100; // (20초이내응답호/인입호) * 100
+                        return toNumber(value).toFixed(1) + '%';
+                    }
+                }
+            ],
+            summary: {
+                defaultContent: {
+                    useAutoSummary: true
+                }
+            },
+            pageOptions: {
+                useClient: true,
+                perPage: 11
+            }
+        },
+
+        setGrid() {
+            this.gridOptions.el = $('#q-grid-wrapper')[0];
+            this.grid = new Grid(this.gridOptions);
+            this.grid.on('afterChange', e => this.summary()); // summary update
+
+            var observer = new ResizeObserver((entries) => {
+                for (var entry in entries) {
+                    this.grid.refreshLayout();
+                }
+            });
+            observer.observe(document.querySelector('.u-container'));
+        },
+
+        setByFilter() {
+            var f = ${qFilter};
+
+            // 그룹/개별 여부
+            var f_group = f.filter(e => e.type == 'GROUP_FLAG');
+            if (f_group && f_group.length > 0)
+                this.groupFlag = JSON.parse(f_group[0].col);
+
+            $('.q-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
+            $('.q-tab[data-is-group="' + this.groupFlag + '"]').siblings('.q-tab').addClass('btn-clear');
+
+            // 리스트
+            var f_list = f.filter(e => e.type == 'LIST');
+            if (this.groupFlag) {
+                ts_qgroup.updateValue(f_list.map(e => e.col));
+            } else {
+                ts_qgroup.updateValue(f_list.map(e => e.value));
+                setQueueTree(f_list.map(e => e.value));
+                ts_queue.updateValue(f_list.map(e => e.col));
+            }
+
+            var checked = this.getChecked();
+            if (checked && checked.length > 0) {
+                this.list();
+            }
+
+            // 라우트현황
+            var f_route = f.filter(e => e.type == 'ROUTE');
+            this.route(f_route);
+
+            // 큐모니터
+            var f_monitor = f.filter(e => e.type == 'MONITOR');
+            this.qmonitor(f_monitor);
+        },
+
+        setRowCount() {
+            $('#q-grid-count').text(this.grid.getRowCount());
+        },
+
+        getChecked(isGroup) {
+            if (typeof isGroup != 'boolean' && !isGroup)
+                isGroup = this.groupFlag;
+
+            if (isGroup)
+                return ts_qgroup.value;
+            else
+                return ts_queue.value;
+        },
+
+        list() {
+            var checked = this.getChecked();
+            if (!checked || checked.length < 1) {
+                alert('조회 조건을 선택하세요');
+                return;
+            }
+
+            this.listCols = checked;
+
+            wsStart();
+        },
+
+        tab(isGroup) {
+            if (this.groupFlag == isGroup)
+                return;
+
+            var checked = this.getChecked(isGroup);
+            if (!checked || checked.length < 1) {
+                alert('조회 조건을 선택하세요');
+                return;
+            }
+
+            this.groupFlag = isGroup;
+
+            var $button = $('.q-tab.btn-clear');
+            $button.removeClass('btn-clear').addClass('btn-primary');
+            $button.siblings('.q-tab').removeClass('btn-primary').addClass('btn-clear');
+
+            this.grid.setColumnHeaders({name: this.groupFlag ? '큐그룹' : '큐'});
+
+            this.list();
+        },
+
+        saveFilter() {
+            var params = [];
+
+            // 리스트 (현재 조회 결과 기준으로 저장)
+            var list = {
+                page: this.page,
+                type: 'LIST',
+                data: this.listCols.map(e => { return {col: e, value: this.data.filter(o => o.id == e)[0].group} })
+            };
+            params.push(getFilterData(list));
+
+            // 그룹/개별 여부 (현재 조회 결과 기준으로 저장)
+            var groupFlag = {
+                page: this.page,
+                type: 'GROUP_FLAG',
+                data: [{col: String(this.groupFlag)}]
+            };
+            params.push(getFilterData(groupFlag));
+
+            // 라우트현황 팝업
+            var cols = this.popupCols.ROUTE;
+            var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+            var route = {
+                page: this.page,
+                type: 'ROUTE',
+                data: data.map(e => { return {col: e} })
+            };
+            params.push(getFilterData(route));
+
+            // 큐모니터 팝업
+            cols = this.popupCols.MONITOR;
+            var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+            var monitor = {
+                page: this.page,
+                type: 'MONITOR',
+                data: data.map(e => { return {col: e} })
+            };
+            params.push(getFilterData(monitor));
+
+            updateFilter(params);
+        },
+
+        excel() {
+            this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '큐그룹현황' : '큐현황')});
+        },
+
+        summary() {
+            var summary = this.grid.getSummaryValues();
+
+            $('#cnt205').text(summary['205'].sum);	// 대기호
+            $('#cnt211').text(summary['211'].sum);	// 인입호
+            $('#cnt221').text(summary['221'].sum);	// 포기호
+            $('#cnt212').text(summary['212'].sum);	// 응답호
+            $('#acdpt').text(toNumber((summary['212'].sum / summary['211'].sum) * 100).toFixed(1) + '%');	// 응답률 (응답호/인입호 * 100)
+        },
+
+        route(data) {
+            var checked = [];
+
+            if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
+                checked = data.filter(e => e.col).map(obj => obj.col);
+                if (checked.length < 1) return;
+
+            } else {	// 사용자 직접 오픈
+                var checked = this.getChecked(false);
+                if (!checked || checked.length < 1) {
+                    alert('조회 조건을 선택하세요');
+                    return;
+                }
+            }
+
+            var $fm = $('#route-form');
+            $fm.empty();
+
+            checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+
+            var popupName = 'r-' + checked.join();
+
+            window.open('', popupName, 'width=890,height=295');
+            $fm.attr('target', popupName);
+            $fm.submit();
+        },
+
+        qmonitor(data) {
+            var checked = [];
+
+            if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
+                checked = data.filter(e => e.col).map(obj => obj.col);
+
+            } else {	// 사용자 직접 오픈
+                var checked = this.getChecked(true);
+                if (!checked || checked.length < 1) {
+                    alert('조회 조건을 선택하세요');
+                    return;
+                }
+            }
+
+            if (checked.length < 1) return;
+
+            var $fm = $('#qmonitor-form');
+            $fm.empty();
+
+            checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'qgroup', value: e})));
+
+            var popupName = 'q-' + checked.join();
+
+            window.open('', popupName, 'width=500,height=310');
+            $fm.attr('target', popupName);
+            $fm.submit();
+        },
+
+        clear() {
+            ts_qgroup.updateValue([]);
+            ts_queue.updateValue([]);
+        }
+    };
+
+    var winker;
+    var wProp;
+    var dbID;
+    var statID = [205, 212, 215, 221].join(STA_DIM); // 인입호 = 응답호(212) + 포기호(221) 이므로 별도 요청 X
+
+    var wStat = {};
+    var dummyStat = {id: '', name: '', 205: 0, 211: 0, 212: 0, 215: 0, 221: 0};
+
+    function wsStart() {
+        if (!isOpen(winker)) {
+            wsConnect();
+
+        } else {
+            wsClose(); // 기존 연결 해제 후 재연결
+            wsOpen();
+        }
+    }
+
+    /*
+        create websocket, connect to server
+    */
+	function wsConnect() {
+		onLoading(true);
+
+		try {
+			if (!wProp) wProp = getWProperties();
+
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+			var consoleFlag   = true;
+
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError();
+		}
+	}
+
+    /*
+        websocket error 후처리
+    */
+    function wsError() {
+        onLoading(false);
+        BI.Msg.toast('통신 연결 실패', {level: 'error'});
+    }
+
+    /*
+        open connection(stat)
+    */
+    function wsOpen() {
+        if (QUEUE.grid) QUEUE.grid.clear();
+
+        if (QUEUE.groupFlag) {
+            var queue = QUEUE.data.filter(e => QUEUE.listCols.indexOf(e.group) > -1);
+            dbID = queue.map(e => e.id).join(STA_DIM);
+        } else {
+            dbID = QUEUE.listCols.join(STA_DIM);
+        }
+
+        winker.wOpenStatExt(dbID, statID);
+
+        onLoading(false);
+        QUEUE.grid.refreshLayout();
+    }
+
+    function wsClose() {
+        winker.wCloseStatExt(dbID, statID);
+    }
+
+    /*
+        websocket callback
+    */
+    function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+        // 서버 연결 완료
+        if (eventId == WMessageType.EventServerConnected) {
+            setTimeout(function() {
+                wsOpen();
+            }, 1000);
+        }
+
+        // 메시지 수신
+        if (eventId == WMessageType.EventStatInfo) {
+            if (QUEUE.groupFlag) {
+                setGroupData(objectDBId, objectType, statId, statVal);
+            } else {
+                setData(objectDBId, objectType, statId, statVal);
+            }
+        }
+
+        // onerror
+        if (eventId == WMessageType.EventError) {
+            wsError();
+        }
+    }
+
+    /*
+        data update - 그룹
+    */
+    function setGroupData(dbID, type, statId, statVal) {
+        var group = QUEUE.data.filter(e => e.id == dbID)[0].group;
+        var stat = wStat[group];
+        if (!stat) {
+            stat = {
+                id: group,
+                name: QUEUE.data.filter(e => e.id == group)[0].name,
+                values: {205: {}, 211: {}, 212: {}, 215: {}, 221: {}}
+            };
+            wStat[group] = stat;
+        }
+
+        var values = stat.values;
+        values[statId][dbID] = toNumber(statVal);
+
+        // 인입호 = 응답호(212) + 포기호 (221)
+        if (statId == '212' || statId == '221') {
+            values['211'][dbID] = values['212'][dbID] + values['221'][dbID];
+        }
+
+        var row = QUEUE.grid.findRows({id: stat.id});
+        if (row.length < 1) {
+            var rowdata = JSON.parse(JSON.stringify(dummyStat));
+            rowdata.id = stat.id;
+            rowdata.name = stat.name;
+            QUEUE.grid.appendRow(rowdata);
+            row = QUEUE.grid.findRows({id: stat.id});
+
+            QUEUE.setRowCount();
+        }
+
+        Object.keys(values).forEach(key => {
+            var sum = Object.values(values[key]).reduce((a, b) => a + b, 0);
+            QUEUE.grid.setValue(row[0].rowKey, key, sum);
+        });
+    }
+
+    /*
+        data update - 개별
+    */
+    function setData(dbID, type, statId, statVal) {
+        var stat = wStat[dbID];
+        if (!stat) {
+            stat = JSON.parse(JSON.stringify(dummyStat));
+            stat.id = dbID;
+            stat.name = QUEUE.data.filter(e => e.id == dbID)[0].name;
+            wStat[dbID] = stat;
+        }
+
+        stat[statId] = toNumber(statVal);
+
+        var row = QUEUE.grid.findRows({id: dbID});
+        if (row.length < 1) {
+            QUEUE.grid.appendRow(stat);
+            row = QUEUE.grid.findRows({id: dbID});
+
+            QUEUE.setRowCount();
+        }
+
+        //QUEUE.grid.setRow(row[0].rowKey, stat);
+        QUEUE.grid.setValue(row[0].rowKey, statId, stat[statId]);
+
+        // 인입호 = 응답호(212) + 포기호 (221)
+        if (statId == '212' || statId == '221') {
+            stat['211'] = stat['212'] + stat['221'];
+            QUEUE.grid.setValue(row[0].rowKey, '211', stat['211']);
+        }
+
+        QUEUE.summary();
+    }
+
+    var qTree = arrayToTree({data: QUEUE.data, value: 'id', name: 'name', parent: 'group'});
+
+    // 큐그룹 treeselect
+    var ts_qgroup = new Treeselect({
+        parentHtmlContainer: document.querySelector('#qgroup-tree'),
+        value: [],
+        options: qTree.map(e => {
+            return {name: e.name, value: e.value, htmlAttr: e.htmlAttr}
+        }),
+        listSlotHtmlComponent: getAllSelectSlot('ts_qgroup'),
+        emptyText: '결과없음',
+        placeholder: '- 선택 -'
+    });
+
+    ts_qgroup.srcElement.addEventListener('input', e => {
+        treeselectAll(ts_qgroup);
+        if (!ts_qgroup.isListOpened) setQueueTree(e.detail);
+    });
+    ts_qgroup.srcElement.addEventListener('name-change', e => {
+        if (!ts_qgroup.isListOpened) setQueueTree(e.detail);
+    });
+    ts_qgroup.srcElement.addEventListener('open', e => {
+        treeselectAll(ts_qgroup);
+    });
+    ts_qgroup.srcElement.addEventListener('close', e => {
+        setQueueTree(e.detail);
+    });
+    ts_qgroup.srcElement.addEventListener('search', e => {
+        ts_qgroup.searchText = e.detail;
+        setTimeout(function() {
+            treeselectAll(ts_qgroup);
+        }, 400);
+    });
+
+    // 큐 treeselect
+    var ts_queue = new Treeselect({
+        parentHtmlContainer: document.querySelector('#queue-tree'),
+        value: [],
+        options: [],
+        showCount: true,
+        listSlotHtmlComponent: getAllSelectSlot('ts_queue'),
+        emptyText: '결과없음',
+        placeholder: '- 선택 -'
+    });
+
+    ts_queue.srcElement.addEventListener('input', e => {
+        treeselectAll(ts_queue);
+    });
+    ts_queue.srcElement.addEventListener('open', e => {
+        treeselectAll(ts_queue);
+    });
+    ts_queue.srcElement.addEventListener('search', e => {
+        if (!ts_queue.searchText && !e.detail) return;
+        if (ts_queue.searchText == e.detail) return;
+
+        ts_queue.searchText = e.detail;
+        setTimeout(function() {
+            treeselectAll(ts_queue);
+        }, 400);
+    });
+
+    QUEUE.setGrid();
+    QUEUE.setByFilter();
+
+    /* 큐 treeselect (큐그룹 변경 시) */
+    function setQueueTree(qgroup) {
+        if (ts_queue) {
+            if (qgroup == ts_queue.parent)
+                return;
+
+            ts_queue.destroy();
+        }
+
+        var data = qTree.filter(e => qgroup.indexOf(e.value) > -1);
+        var options = [];
+        data.forEach(e => options.push(...e.children));
+
+        if (data && data.length > 0) {
+            ts_queue.options = options;
+            ts_queue.mount();
+
+            ts_queue.parent = qgroup;
+        }
+    }
+</script>
+
+<!--라우트현황-->
+<form id="route-form" action="${fineServletURL}/uplus/skill/route" method="GET"></form>
+
+<!--큐모니터-->
+<form id="qmonitor-form" action="${fineServletURL}/uplus/skill/qmonitor" method="GET"></form>
+
+<div class="filter-wrapper shadow-sm d-table">
+    <div class="d-table-cell">
+        <label>큐그룹</label>
+        <div class="tree-container custom-select" id="qgroup-tree" data-placeholder="- 선택 -"></div>
+        <label class="mb-0">큐</label>
+        <div class="tree-container custom-select mb-0" id="queue-tree" data-placeholder="- 선택 -"></div>
+    </div>
+    <div class="d-table-cell">
+        <button class="btn btn-info"  onclick="QUEUE.list();">조회</button>
+        <button class="btn btn-clear" onclick="QUEUE.clear();">초기화</button>
+        <button class="btn btn-info"  onclick="QUEUE.route();">라우트현황</button>
+        <button class="btn btn-info"  onclick="QUEUE.qmonitor();">큐모니터</button>
+    </div>
+
+    <div class="d-table-cell text-right">
+        <button class="btn btn-white" onclick="QUEUE.saveFilter();">필터저장</button>
+        <button class="btn btn-white" onclick="initFilter({title: '큐 현황', page: QUEUE.page});">필터초기화</button>
+    </div>
+</div>
+
+<span class="onloading" style="display:none;"></span>
+
+<div class="grid-container load-data">
+    <!-- summary -->
+    <table class="table summary">
+        <colgroup>
+            <col width="20%">
+            <col width="20%">
+            <col width="20%">
+            <col width="20%">
+            <col width="20%">
+        </colgroup>
+        <tr>
+            <th>대기호</th>
+            <th>인입호</th>
+            <th>포기호</th>
+            <th>응답호</th>
+            <th>응답률 (%)</th>
+        </tr>
+        <tr>
+            <td id="cnt205">0</td>
+            <td id="cnt211">0</td>
+            <td id="cnt221">0</td>
+            <td id="cnt212">0</td>
+            <td id="acdpt">0</td>
+        </tr>
+    </table>
+    <!-- // summary -->
+
+    <div class="d-table mb-2">
+        <div class="d-table-cell">
+            <div class="btn-group">
+                <button type="button" class="btn q-tab" data-is-group="true"  onclick="QUEUE.tab(true);">그룹</button>
+                <button type="button" class="btn q-tab" data-is-group="false" onclick="QUEUE.tab(false);">개별</button>
+            </div>
+        </div>
+        <div class="d-table-cell text-right">
+            <span class="mr-2">총 <em id="q-grid-count">0</em>건</span>
+            <button class="btn btn-white" onclick="QUEUE.excel();">엑셀요청</button>
+        </div>
+    </div>
+
+    <div class="grid-wrapper" id="q-grid-wrapper"></div>
+</div>

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>상담사 개별 현황</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-pagination.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+<style>
+	.u-container * {font-size:13px;font-weight:500;color:#221815;}
+	button.btn, .custom-select {height:25px !important;}
+
+	.btn {line-height:12px;color:#fff;}
+	.btn-clear {background-color:#d9d9d9;}
+	.btn-white {background:#fff;border:1px solid #6d6875;color:#221815;}
+
+	.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;width:100%;}
+	.filter-wrapper * {vertical-align:middle;}
+	.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+	.filter-wrapper select {width:10em;display:inline-block;padding-top:2px;}
+	.filter-wrapper input[type=text] {width:150px;display:inline-block;}
+	.filter-wrapper > label {margin-left:.3rem;}
+
+	.table-container {padding:1.5rem 2rem;}
+
+	.d-table {width:100%;}
+
+	.tui-grid-cell-content[data-status="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 3px 0 0;}
+	.tui-grid-cell-content[data-status="4"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="5"]::before {content:'';background:url(/webroot/ssoagent/images/icon_acw.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 3px 0 0;}
+	.tui-grid-cell-content[data-status="14"]::before {content:'';background:url(/webroot/ssoagent/images/icon_ob.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="15"]::before {content:'';background:url(/webroot/ssoagent/images/icon_ib.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="99"]::before {content:'';background:url(/webroot/ssoagent/images/icon_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="1"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_massage.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="2"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_rest.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_mentoring.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="4"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_edu.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="5"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_counseling.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="6"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_dataprcsng.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+	.tui-grid-cell-content[data-status="4"][data-auxstatus="7"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 0 0;}
+
+	.tui-grid-cell.timeout * {font-weight:600;}
+	.tui-grid-cell.timeout[data-status="3"] {background-color:#e3e3c7;}
+	.tui-grid-cell.timeout[data-status="4"] {background-color:#b6dfe7;}
+	.tui-grid-cell.timeout[data-status="5"] {background-color:#feffd6;}
+	.tui-grid-cell.timeout[data-status="14"] {background-color:#f3cebc;}
+	.tui-grid-cell.timeout[data-status="15"] {background-color:#bfd8ff;}
+
+	#modal-threshold .modal-dialog {width:400px;}
+
+	.tree-container {padding:.1rem 0 .375rem .75rem;background:#fff;}
+	#channel-tree {width:150px;}
+	#org-tree {width:300px;}
+	.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
+	.treeselect-list__slot {background-color:#eef4fb;}
+	.treeselect-input__tags {width:86%;}
+</style>
+<script>
+	var page = 'AGENT_LIST';
+	var channelCols, listCols = [];
+
+	var channelInfo = ${channelInfo};
+	var orgInfo = ${orgInfo};
+	var orgTree = orgToTree(orgInfo);
+
+	var ts_chn, ts_org;
+
+	$(document).ready(function() {
+		var channels = [...new Set(orgInfo.map(e => e.channel_nm))];
+
+		// 채널 treeselect
+		ts_chn = new Treeselect({
+			parentHtmlContainer: document.querySelector('#channel-tree'),
+			value: '',
+			options: arrayToTree({data: channelInfo, name: 'org_name', value: 'org_name', parent: 'hirk_org_cd'}),
+			emptyText: '결과없음',
+			placeholder: '- 채널 -',
+			isSingleSelect: true,
+			searchable: false,
+			showTags: false
+		});
+
+		ts_chn.srcElement.addEventListener('input', e => {
+			setOrgTree(ts_chn.value);
+		});
+		ts_chn.srcElement.addEventListener('name-change', e => {
+			setOrgTree(ts_chn.value);
+		});
+
+		// 센터/그룹/팀 treeselect
+		ts_org = new Treeselect({
+			parentHtmlContainer: document.querySelector('#org-tree'),
+			value: [],
+			options: [],
+			showCount: true,
+			listSlotHtmlComponent: getAllSelectSlot('ts_org'),
+			emptyText: '결과없음',
+			placeholder: '- 센터/그룹/팀 -'
+		});
+
+		ts_org.srcElement.addEventListener('input', e => {
+			treeselectAll(ts_org);
+		});
+		ts_org.srcElement.addEventListener('open', e => {
+			treeselectAll(ts_org);
+		});
+		ts_org.srcElement.addEventListener('search', e => {
+			ts_org.searchText = e.detail;
+			setTimeout(function() {
+				treeselectAll(ts_org);
+			}, 400);
+		});
+
+		// 임계치 설정 레이어팝업
+		$('#modal-threshold').on('show.bs.modal', function(e) {
+			$(this).find('.modal-content').load('${fineServletURL}/uplus/agent/threshold?page=' + page);
+		});
+
+		// 초기화
+		$('#btn-clear').on('click', function() {
+			ts_chn.updateValue('');
+			ts_org.updateValue([]);
+		});
+
+		// 저장된 필터 기준으로 화면 셋팅
+		setByFilter();
+	});
+
+	/* 조직(센터/그룹/팀) treeselect */
+	function setOrgTree(chn) {
+		var data = orgTree.filter(e => e.value == chn);
+
+		if (ts_org) ts_org.destroy();
+
+		if (data && data.length > 0) {
+			ts_org.options = data[0].children;
+			ts_org.mount();
+		}
+	}
+
+	/* 저장된 필터 기준으로 화면 셋팅 */
+	function setByFilter() {
+		var filterInfo = ${filterInfo};
+
+		// 임계치
+		window.ft_threshold = {};
+		filterInfo.filter(e => e.type == 'THRESHOLD')
+				  .forEach(e => ft_threshold[e.col] = e.value); // {CallInbound: xxx, CallOutbound: xxx, ...}
+
+		// 채널
+		var ft_channel = filterInfo.filter(e => e.type == 'CHANNEL').map(e => e.col);
+		if (ft_channel.length > 0) {
+			ts_chn.updateValue(ft_channel);
+			setOrgTree(ts_chn.value);
+		}
+
+		// 리스트
+		var ft_list = filterInfo.filter(e => e.type == 'LIST').map(e => e.col);
+		if (ft_list.length > 0) {
+			ts_org.updateValue(ft_list);
+			submit();
+		}
+	}
+
+	/* 필터저장 */
+	function saveFilter() {
+		var params = [];
+
+		// 채널
+		var channel = {
+			page: page,
+			type: 'CHANNEL',
+			data: channelCols
+		};
+		params.push(getFilterData(channel));
+
+		// 리스트 (현재 조회 결과 기준으로 저장)
+		var list = {
+			page: page,
+			type: 'LIST',
+			data: listCols
+		};
+		params.push(getFilterData(list));
+
+		updateFilter(params);
+	}
+
+	/* 조회 */
+	function submit() {
+		if (!ts_chn.value || ts_chn.value.length < 1) {
+			alert('채널을 선택하세요');
+			return;
+		}
+
+		if (!ts_org.value || ts_org.value.length < 1) {
+			alert('센터/그룹/팀을 선택하세요');
+			return;
+		}
+
+		channelCols = {col: ts_chn.value};
+		listCols = ts_org.value.map(e => {
+			return {col: e}
+		});
+
+		wsStart();
+	}
+
+	var winker;
+	var wProp;
+	var dbID;
+	var statID = [111, 112, 113, 115, 116, 117, 119, 128, 129, 130, 131, 132, 133, 141, 142, 143, 150, 151, 158, 159].join(STA_DIM);
+
+	function wsStart() {
+		if (!isOpen(winker)) {
+			wsConnect();
+
+		} else {
+			wsClose(); // 기존 연결 해제 후 재연결
+			wsOpen();
+		}
+	}
+
+	function wsConnect() {
+		onLoading(true);
+
+		try {
+			if (!wProp) wProp = getWProperties();
+
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+			var consoleFlag   = true;
+
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError();
+		}
+	}
+
+	function wsError() {
+		onLoading(false);
+		BI.Msg.toast('통신 연결 실패', {level: 'error'});
+	}
+
+	function wsOpen() {
+		if (grid) grid.clear();
+
+		var org = ts_org.value;
+		dbID = userInfo.filter(e => org.indexOf(e.org_cd) > -1).map(e => e.agid).join(STA_DIM);
+
+		// socket open
+		winker.wOpenStatExt(dbID, statID);
+
+		onLoading(false);
+	}
+
+	function wsClose() {
+		winker.wCloseStatExt(dbID, statID);
+	}
+
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(function() {
+				wsOpen();
+			}, 1000);
+		}
+
+		if (eventId == WMessageType.EventStatInfo) {
+			setData(objectDBId, objectType, statId, statVal);
+		}
+
+		// onerror
+		if (eventId == WMessageType.EventError) {
+			wsError();
+		}
+	}
+
+	var userInfo = ${userInfo};
+	var wStat = {};
+
+	/*
+		websocket callback function
+	*/
+	function setData(dbID, type, statId, statVal) {
+		var stat = wStat[dbID];
+		if (!stat) {
+			var user = userInfo.filter(e => e.agid == dbID)[0];
+
+			stat = {
+				agid: '', org: '', loginId: '', status: '',
+				113: '', 111: '', 115: '', 116: '', 117: '', 119: 0, 141: 0, 142: 0, 143: 0,
+				132: 0, 133: 0, ibcount: 0, 158: 0, 159: 0, ibtime: 0,
+				130: 0, 131: 0, obcount: 0, 150: 0, 151: 0, obtime: 0
+			};
+			stat.agid = dbID;
+			stat.name = user.name;       // 이름
+			stat.org = user.fl_org_name; // 조직
+			stat.loginId = getLoginId(user.login_id); // 로그인ID
+			wStat[dbID] = stat;
+		}
+
+		stat[statId] = statVal;
+
+		// 현재상태(115)가 Call 관련 상태인 경우, 해당 상태가 우선이 된다
+		if (statId == '115' || statId == '116') {
+			var stat115 = stat['115'];
+			if (5 < Number(stat115)) {
+				stat.status = stat115;
+			} else {
+				stat.status = statVal;
+			}
+		}
+
+		// 상담사상태값 수신 받지 못한 경우 return
+		if (!stat.status) {
+			return;
+		}
+
+		// 알수없음(0), 로그아웃(1) 인원을 제외한 나머지 인원 전체 노출 (= 로그인 인원만 노출)
+		if (stat.status == '0' || stat.status == '1') {
+			grid.findRows(function(row) {
+				if (row.agid == dbID) grid.removeRow(row.rowKey);
+
+				return row;
+			});
+
+			return;
+		}
+
+		var row = grid.findRows({agid: dbID});
+		if (row.length < 1) {
+			grid.appendRow(stat);
+			row = grid.findRows({agid: dbID});
+		}
+
+		//grid.setRow(row[0].rowKey, stat);
+		grid.setValue(row[0].rowKey, statId, statVal);
+
+		if (statId == '115' || statId == '116') {
+			grid.setValue(row[0].rowKey, 'status', stat.status);
+		}
+	}
+</script>
+</head>
+<body>
+<div class="u-container">
+	<div class="filter-wrapper shadow-sm d-table">
+		<div class="d-table-cell">
+			<div class="tree-container custom-select" id="channel-tree" data-placeholder="- 채널 -"></div>
+			<div class="tree-container custom-select" id="org-tree" data-placeholder="- 센터/그룹/팀 -"></div>
+			<button class="btn btn-info" onclick="submit();">조회</button>
+			<button class="btn btn-clear" id="btn-clear">초기화</button>
+		</div>
+
+		<div class="d-table-cell text-right">
+			<button class="btn btn-white" data-toggle="modal" data-target="#modal-threshold">임계치설정</button>
+			<button class="btn btn-white" onclick="saveFilter();">필터저장</button>
+			<button class="btn btn-white" onclick="initFilter({page: page, message: '해당 페이지의 필터가 전체 삭제됩니다.\n\n* 임계치 설정 포함'});">필터초기화</button>
+		</div>
+	</div>
+
+	<span class="onloading" style="display:none;"></span>
+
+	<div class="table-container load-data">
+		<div class="d-table mb-2">
+			<div class="d-table-cell text-right">
+				<span class="mr-2">총 <em id="rowCount">0</em>건</span>
+				<button class="btn btn-white" onclick="excel();">엑셀요청</button>
+			</div>
+		</div>
+
+		<div id="grid-wrapper"></div>
+	</div>
+
+	<!--임계치 설정-->
+	<div class="modal" id="modal-threshold" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<!--//임계치 설정-->
+</div>
+
+<script>
+	var Grid = tui.Grid;
+	Grid.applyTheme('clean');
+	Grid.setLanguage('ko');
+
+	class statusRenderer {
+		constructor(props) {
+			this.el = document.createElement('div');
+			this.render(props);
+		}
+
+		getElement() {
+			return this.el;
+		}
+
+		render(props) { // 상담사상태 html 제어
+			$(this.el).addClass('tui-grid-cell-content');
+
+			// 화면에 표기되는 대기,이석,후처리,OB,IB 5개 상태를 제외한 나머지 상태는 '기타'로 표기
+			if (['3','4','5','14','15'].indexOf(props.value) < 0) {
+				props.value = '99';
+			}
+
+			// 이석 상세 사유
+			var auxStatus = props.grid.getValue(props.rowKey, '117');
+			if (props.value == '4' && WAuxStatus[auxStatus]) {
+				$(this.el).attr('data-auxstatus', auxStatus);
+
+			} else {
+				$(this.el).removeAttr('data-auxstatus');
+			}
+
+			$(this.el).attr('data-status', props.value);
+			$(this.el).text(props.formattedValue);
+		}
+	}
+
+	var grid = new Grid({
+		el: document.getElementById('grid-wrapper'),
+		usageStatistics: false,
+		scrollX: false,
+		scrollY: false,
+		minBodyHeight: 40,
+		minRowHeight: 40,
+		rowHeight: 40,
+		pageOptions: {
+			useClient: true,
+			perPage: 15
+		},
+		header: {
+			height: 40,
+			align: 'left',
+			columns: [
+				{name: '119',     align: 'center'}, // 상태유지시간
+				{name: 'ibcount', align: 'right'},  // IB통화건수
+				{name: 'ibtime',  align: 'right'},  // IB통화시간
+				{name: 'obcount', align: 'right'},  // OB통화건수
+				{name: 'obtime',  align: 'right'},  // OB통화시간
+				{name: '141',     align: 'right'},  // 대기시간
+				{name: '142',     align: 'right'},  // 후처리시간
+				{name: '143',     align: 'right'}   // 이석시간
+			]
+		},
+		columnOptions: {
+			resizable: true
+		},
+		columns: [
+			{
+				header: 'agid',
+				name: 'agid',
+				hidden: true
+			},
+			{
+				header: '조직',
+				name: 'org',
+				sortable: true,
+				width: 350
+			},
+			{
+				header: '로그인ID',
+				name: 'loginId',
+				sortable: true
+			},
+			{
+				header: '상담사명',
+				name: 'name',
+				sortable: true
+			},
+			{
+				header: '현재상태',
+				name: '115',
+				hidden: true
+			},
+			{
+				header: '로그인상태',
+				name: '116',
+				hidden: true
+			},
+			{
+				header: '이석상세사유',
+				name: '117',
+				hidden: true
+			},
+			{
+				header: '상담사상태',
+				name: 'status',
+				sortable: true,
+				className: 'status',
+				renderer: {
+					type: statusRenderer
+				},
+				comparator: function(valueA, valueB, rowA, rowB) {
+					var a = grid.getFormattedValue(rowA.rowKey, 'status');
+					var b = grid.getFormattedValue(rowB.rowKey, 'status');
+					return a < b ? -1 : (a > b ? 1 : 0);
+				},
+				formatter: function(data) { // 상담사상태 값 처리
+					var value = data.value;
+
+					// 화면에 표기되는 대기,이석,후처리,OB,IB 5개 상태를 제외한 나머지 상태는 '기타'로 표기
+					if (['3','4','5','14','15'].indexOf(value) < 0) {
+						value = '99';
+					}
+
+					var textVal = WAgentStatus[value].text;
+
+					// 이석 상세 사유 표기
+					if (value == '4' && WAuxStatus[data.row['117']]) {
+						textVal += '(' + WAuxStatus[data.row['117']].text + ')';
+					}
+
+					return textVal;
+				}
+			},
+			{
+				header: '상태유지시간',
+				name: '119',
+				align: 'center',
+				sortable: true,
+				formatter: data => getHis(data.value)
+			},
+			{
+				header: 'ACW인입호',
+				name: '132',
+				hidden: true
+			},
+			{
+				header: 'AUX인입호',
+				name: '133',
+				hidden: true
+			},
+			{
+				header: 'IB통화건수',
+				name: 'ibcount',
+				align: 'right',
+				sortable: true,
+				comparator: function(valueA, valueB, rowA, rowB) {
+					var a = Number(rowA['132']) + Number(rowA['133']);
+					var b = Number(rowB['132']) + Number(rowB['133']);
+					return a - b;
+				},
+				formatter: function(data) {
+					var value = Number(data.row['132']) + Number(data.row['133']); // ACW인입호 + AUX인입호
+					return value.toLocaleString();
+				}
+			},
+			{
+				header: 'ACW인입통화시간',
+				name: '158',
+				hidden: true
+			},
+			{
+				header: 'AUX인입통화시간',
+				name: '159',
+				hidden: true
+			},
+			{
+				header: 'IB통화시간',
+				name: 'ibtime',
+				align: 'right',
+				sortable: true,
+				comparator: function(valueA, valueB, rowA, rowB) {
+					var a = Number(rowA['158']) + Number(rowA['159']);
+					var b = Number(rowB['158']) + Number(rowB['159']);
+					return a - b;
+				},
+				formatter: function(data) {
+					var value = Number(data.row['158']) + Number(data.row['159']); // ACW인입통화시간 + AUX인입통화시간
+					return getHis(value);
+				}
+			},
+			{
+				header: 'ACW발신통화호',
+				name: '130',
+				hidden: true
+			},
+			{
+				header: 'AUX발신통화호',
+				name: '131',
+				hidden: true
+			},
+			{
+				header: 'OB통화건수',
+				name: 'obcount',
+				align: 'right',
+				sortable: true,
+				comparator: function(valueA, valueB, rowA, rowB) {
+					var a = Number(rowA['130']) + Number(rowA['131']);
+					var b = Number(rowB['130']) + Number(rowB['131']);
+					return a - b;
+				},
+				formatter: function(data) {
+					var value = Number(data.row['130']) + Number(data.row['131']); // ACW발신통화호 + AUX발신통화호
+					return value.toLocaleString();
+				}
+			},
+			{
+				header: 'ACW발신통화시간',
+				name: '150',
+				hidden: true
+			},
+			{
+				header: 'AUX발신통화시간',
+				name: '151',
+				hidden: true
+			},
+			{
+				header: 'OB통화시간',
+				name: 'obtime',
+				align: 'right',
+				sortable: true,
+				comparator: function(valueA, valueB, rowA, rowB) {
+					var a = Number(rowA['150']) + Number(rowA['151']);
+					var b = Number(rowB['150']) + Number(rowB['151']);
+					return a - b;
+				},
+				formatter: function(data) {
+					var value = Number(data.row['150']) + Number(data.row['151']); // ACW발신통화시간 + AUX발신통화시간
+					return getHis(value);
+				}
+			},
+			{
+				header: '대기시간',
+				name: '141',
+				align: 'right',
+				sortable: true,
+				formatter: data => getHis(data.value)
+			},
+			{
+				header: '후처리시간',
+				name: '142',
+				align: 'right',
+				sortable: true,
+				formatter: data => getHis(data.value)
+			},
+			{
+				header: '이석시간',
+				name: '143',
+				align: 'right',
+				sortable: true,
+				formatter: data => getHis(data.value)
+			}
+		]
+	});
+
+	// grid 데이터 변경 후 이벤트
+	grid.on('afterChange', e => {
+		var instance = e.instance;
+		var changes = e.origin == 'cell' ? e.changes.filter(o => o.columnName == '119') : [];
+		if (changes.length > 0) {
+			var rowKey = changes[0].rowKey;
+			var value = changes[0].value;
+			var status = instance.getValue(rowKey, 'status');
+			var $cell = $('.tui-grid-cell[data-row-key="' + rowKey + '"]');
+
+			if (status) {
+				// 상태유지시간 임계치 도달 시 강조 처리
+				var col = WAgentStatus[status].name;
+				if (ft_threshold[col]) {
+					if (Number(ft_threshold[col]) <= value) {
+						$cell.addClass('timeout');
+
+					} else {
+						$cell.removeClass('timeout');
+					}
+
+				} else {
+					$cell.removeClass('timeout');
+				}
+
+				$cell.attr('data-status', status);
+			}
+		}
+
+		// 데이터 총 건수
+		$('#rowCount').text(instance.getRowCount());
+	});
+
+	var observer = new ResizeObserver((entries) => {
+		for (var entry in entries) {
+			grid.refreshLayout();
+		}
+	});
+	observer.observe(document.querySelector('.u-container'));
+
+	/* 엑셀추출 */
+	function excel() {
+		grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_상담사개별현황'});
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>큐/스킬 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.cookie.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-pagination.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+<style>
+	html, body {height:100%;}
+	.u-container {height:100vh;}
+	.u-container * {font-size:13px;font-weight:500;color:#444;}
+	.sub-container {width:50%;position:relative;}
+	.sub-container:not(:last-child) {border-right:1px solid #0000001a;}
+	button, .custom-select {height:25px !important;}
+
+	.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;}
+	.filter-wrapper .d-table-cell > * {margin-bottom:.5em;}
+	.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+
+	.btn {line-height:12px;color:#fff;}
+	.btn-clear {background-color:#d9d9d9;}
+	.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+	.grid-container {padding:1.5rem 2rem 1rem;}
+	.summary {margin-bottom:2.5rem;}
+	.summary tr {height:40px;}
+	.summary tr:last-child {border-top:2px solid #bcbcbc;}
+	.summary th {background-color:#f4f4f4;}
+	.summary th, .table td {vertical-align:middle;text-align:center;padding:.45rem;border:1px solid #c9caca;}
+	.summary th:first-child, .table td:first-child {border-left-width:0;}
+	.summary th:last-child, .table td:last-child {border-right-width:0;}
+
+	.d-table {width:100%;}
+
+	#loading {display:inline-block;background:url(/webroot/ssoagent/images/icons8-load-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;animation:6s linear 0s infinite normal none running rotate_image;transform-origin:50% 50%;margin-left:5px;}
+	#done {display:inline-block;background:url(/webroot/ssoagent/images/icons8-done-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;margin-left:5px;}
+
+	@keyframes rotate_image {
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	.tree-container {width:300px;padding:.1rem 0 .375rem .75rem;background:#fff;}
+	.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
+	.treeselect-list__slot {background-color:#eef4fb;}
+	.treeselect-input__tags {width:82%;}
+
+	#queue-container .filter-wrapper .d-table-cell:first-child {width:342px;}
+	#queue-container .filter-wrapper .d-table-cell > label {width:2.7em;text-align:right;vertical-align:middle;}
+	#skill-container .filter-wrapper .d-table-cell:first-child {width:353px;}
+	#skill-container .filter-wrapper .d-table-cell > label {width:3.5em;text-align:right;vertical-align:middle;}
+</style>
+
+<script>
+	$(document).ready(function() {
+		// 큐, 스킬 각 영역 html 별도 분리
+		$('#queue-container').load('${fineServletURL}/uplus/skill/queue');
+		$('#skill-container').load('${fineServletURL}/uplus/skill?type=${type}');
+	});
+</script>
+</head>
+<body>
+<div class="u-container d-flex">
+	<!--큐현황-->
+	<div class="sub-container" id="queue-container"></div>
+
+	<!--스킬현황-->
+	<div class="sub-container" id="skill-container"></div>
+</div>
+</body>
+</html>

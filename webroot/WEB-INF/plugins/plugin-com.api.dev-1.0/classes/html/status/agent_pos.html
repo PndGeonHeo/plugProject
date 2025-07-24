@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/bootstrap.bundle-4.5.2.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/muuri.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/treeselectjs.umd.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
+
+	<style>
+		html, body {height:100%;}
+		ul {display:inline-block;}
+		.u-container * {font-size:13px;font-weight:500;color:#221815;}
+		.box-container {text-align:center;margin:0 0 1.5rem;}
+		.grid {position:relative;margin:0 auto;}
+		.grid-item {position:absolute;margin:1.5rem 0 .5rem 1.75em;}
+
+		.box-wrapper {width:350px;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
+		.box-wrapper:active {background-color:#b3bcc7;}
+		.box-wrapper:active .title {color:#fff;}
+		.box {height:fit-content;}
+		.box .title {padding:1rem .5rem .5rem;font-size:14px;}
+		.item-wrapper {grid-template-columns:repeat(4, calc(342px/4));padding:4px;}
+		.item-wrapper > div.item {padding:.25rem .35rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
+		.item-wrapper > div.item > p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+		.item-wrapper > div.item > p.loginId {font-weight:600;}
+		.item-wrapper > div.item:not(.logout) > p.status {color:#3685f2;}
+
+		.item-wrapper > div.item.logout {background-color:#eee;box-shadow:none !important;}
+		.item-wrapper > div.item.logout * {color:#999;}
+
+		.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;width:100%;}
+		.filter-wrapper * {vertical-align:middle;}
+		.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+		.filter-wrapper select {width:10em;display:inline-block;padding-top:2px;}
+		.filter-wrapper label {vertical-align:middle;line-height:1em;}
+		.filter-wrapper .checkbox-inline {line-height:21px;margin-right:0;}
+		.filter-wrapper .checkbox-inline:not(:first-child) {margin-left:.75rem;}
+		.filter-wrapper .checkbox-inline label {display:inline-flex;}
+		.filter-wrapper .checkbox-inline input[type=checkbox] {margin-right:5px;}
+
+		button.btn, .custom-select {height:25px !important;}
+		.btn {line-height:12px;color:#fff;}
+		.btn-clear {background-color:#d9d9d9;}
+		.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+		.no-data {position: absolute;top:400px;left:50%;transform:translate(-50%,-50%);color:#bbb;}
+
+		#modal-threshold .modal-dialog {width:400px;}
+
+		.tree-container {padding:.1rem 0 .375rem .75rem;background:#fff;}
+		//#d-tree {width:130px;}
+		#d-tree, #j-tree, #org-tree {width:250px;}
+		.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
+		.treeselect-list__slot {background-color:#eef4fb;}
+		.treeselect-input__tags {width:82%;}
+	</style>
+	<script>
+		var page = 'AGENT_POS';
+		var searchType = 0;                // 0: 전체, 1: 로그아웃, 2: 로그인
+		var listCols = [], popupCols = []; // 리스트, 팝업 조회 시 조회 조건 (필터저장용)
+
+		var damdangInfo = ${damdangInfo};
+		var orgInfo = ${orgInfo};
+		var orgTree = arrayToTree({data: orgInfo, value: 'org_cd', name: 'org_name', parent: 'hirk_org_cd'});
+
+		var departmentPosts = [];
+		if (!parent.Dec.userInfo.uplus) {
+			depAndRoles();
+			departmentPosts = parent.Dec.userInfo.uplus.departmentPosts;
+		}
+
+		var fl_org = []; // 사용자 소속
+		if (departmentPosts && departmentPosts.length > 0) {
+			var depArr = departmentPosts[0].departments.split(',');
+			depArr = depArr.slice(2, depArr.length); // 담당부터 체크
+
+			var userDep = orgInfo.find(e => e.fl_org_name == depArr.join('_'));
+			if (userDep) {
+				fl_org = userDep.fl_org_cd.split('_');
+			}
+		}
+
+		var ts_d, ts_j, ts_org;
+
+		$(document).ready(function() {
+			// 담당 treeselect
+			ts_d = new Treeselect({
+				parentHtmlContainer: document.querySelector('#d-tree'),
+				value: [],
+				options: arrayToTree({data: damdangInfo, value: 'org_cd', name: 'org_name', parent: 'hirk_org_cd'}),
+				showCount: true,
+				emptyText: '결과없음',
+				placeholder: '- 담당 -'
+			});
+			ts_d.srcElement.addEventListener('input', e => {
+				if (!ts_d.isListOpened) {
+					setTree2Depth();
+				}
+			});
+			ts_d.srcElement.addEventListener('name-change', e => {
+				if (!ts_d.isListOpened) {
+					setTree2Depth();
+				}
+			});
+			ts_d.srcElement.addEventListener('close', e => {
+				setTree2Depth();
+			});
+
+			// 지점 treeselect
+			ts_j = new Treeselect({
+				parentHtmlContainer: document.querySelector('#j-tree'),
+				value: [],
+				options: [],
+				showCount: true,
+				listSlotHtmlComponent: getAllSelectSlot('ts_j'),
+				emptyText: '결과없음',
+				placeholder: '- 지점 -'
+			});
+			ts_j.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_j);
+				if (!ts_j.isListOpened) {
+					setTree3Depth();
+				}
+			});
+			ts_j.srcElement.addEventListener('name-change', e => {
+				if (!ts_j.isListOpened) {
+					setTree3Depth();
+				}
+			});
+			ts_j.srcElement.addEventListener('open', e => {
+				if (ts_j.isListOpened && $(ts_j.srcElement).find('.treeselect-list').is(':visible') && $(ts_j.srcElement).find('.arrowUp').length < 1) {
+					ts_j.toggleOpenClose();
+				}
+				treeselectAll(ts_j);
+			});
+			ts_j.srcElement.addEventListener('close', e => {
+				setTree3Depth();
+			});
+			ts_j.srcElement.addEventListener('search', e => {
+				ts_j.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_j);
+				}, 400);
+			});
+
+			// 대리점/POS treeselect
+			ts_org = new Treeselect({
+				parentHtmlContainer: document.querySelector('#org-tree'),
+				value: [],
+				options: [],
+				showCount: true,
+				listSlotHtmlComponent: getAllSelectSlot('ts_org'),
+				emptyText: '결과없음',
+				placeholder: '- 대리점/POS -'
+			});
+			ts_org.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_org);
+			});
+			ts_org.srcElement.addEventListener('open', e => {
+				if (ts_org.isListOpened && $(ts_org.srcElement).find('.treeselect-list').is(':visible') && $(ts_org.srcElement).find('.arrowUp').length < 1) {
+					ts_org.toggleOpenClose();
+				}
+				treeselectAll(ts_org);
+			});
+			ts_org.srcElement.addEventListener('search', e => {
+				ts_org.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_org);
+				}, 400);
+			});
+
+			// 사용자 소속값 셋팅 (담당)
+			if (fl_org[0]) {
+				ts_d.value = [fl_org[0]];
+			}
+			if (ts_d.options.length == 1) {
+				ts_d.disabled = true;
+			}
+			ts_d.mount();
+
+			// 사용자 소속값 셋팅 (지점)
+			if (fl_org[1]) {
+				ts_j.value = [fl_org[1]];
+			}
+			if (ts_j.options.length == 1) {
+				ts_j.disabled = true;
+			}
+			ts_j.mount();
+
+			// 사용자 소속값 셋팅 (대리점/POS)
+			if (fl_org[3]) {
+				ts_org.value = [fl_org[3]];
+				ts_org.grouped = false;
+				ts_org.disabled = true;
+			}
+			ts_org.mount();
+
+			// 노출 항목 제어
+			$('.list-item').change(function() {
+				if ($('.list-item:checked').length < 1) {
+					alert("1개 이상 선택하세요");
+					$(this).prop('checked', true);
+					return;
+				}
+
+				var clz = $(this).val();
+				$('.' + clz).toggle($(this).prop('checked'));
+
+				setGridLayout(true);
+			});
+
+			// 전체/로그인/로그아웃 탭 클릭 이벤트
+			$('.tab').click(function() {
+				var type = toNumber($(this).data('type'));
+
+				if (searchType == type) {
+					return;
+				}
+
+				searchType = type;
+
+				$('.tab').removeClass('btn-clear btn-primary');
+				$(this).siblings('.tab').addClass('btn-clear');
+				$(this).addClass('btn-primary');
+
+				submit();
+			});
+
+			// 조회 조건 초기화
+			$('#btn-clear').on('click', function() {
+				ts_d.updateValue([]);
+				setTree2Depth();
+			});
+
+			// 필터 기반 조회
+			setByFilter();
+		});
+
+		/* 담당 선택 시 지점 treeselect option 셋팅 */
+		function setTree2Depth() {
+			var checked = ts_d.value;
+
+			if (ts_j) {
+				// 기존 선택값과 다른 경우에만 처리
+				if (JSON.stringify(checked) == JSON.stringify(ts_j.parent)) {
+					return;
+				}
+
+				ts_j.value = [];
+				ts_j.options = [];
+				ts_j.mount();
+
+				ts_org.value = [];
+				ts_org.options = [];
+				ts_org.mount();
+			}
+
+			// 선택한 담당 하위 지점 정보 가져오기
+			var orgs = JSON.parse(JSON.stringify(orgInfo.filter(e => e.depth == 2 && checked.indexOf(e.hirk_org_cd) > -1)));
+			if (fl_org[1]) {
+				// 소속 지점이 있는 경우, 이에 해당하는 하위 조직만 조회 가능
+				orgs = orgs.filter(e => e.org_cd == fl_org[1]);
+			}
+			orgs.forEach(e => e.hirk_org_cd = '');
+
+			var options = arrayToTree({data: orgs, value: 'org_cd', name: 'org_name', parent: 'hirk_org_cd'});
+			options.sort((a, b) => {
+				return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+			});
+
+			if (options && options.length > 0) {
+				ts_j.parent = checked;
+				ts_j.options = options;
+				ts_j.mount();
+			}
+		}
+
+		/* 지점 선택 시 대리점/POS treeselect option 셋팅 */
+		function setTree3Depth() {
+			var checked = ts_j.value;
+
+			if (ts_org) {
+				// 기존 선택값과 다른 경우에만 처리
+				if (JSON.stringify(checked) == JSON.stringify(ts_org.parent)) {
+					return;
+				}
+
+				ts_org.value = [];
+				ts_org.options = [];
+				ts_org.mount();
+			}
+
+			// 선택한 지점 하위 대리점/POS 정보 가져오기
+			var orgs = JSON.parse(JSON.stringify(orgInfo.filter(e => e.depth >= 2)));
+			orgs.forEach(e => {
+				if (e.depth == 2) {
+					e.hirk_org_cd = '';
+				}
+			});
+			var tree = arrayToTree({data: orgs, value: 'org_cd', name: 'org_name', parent: 'hirk_org_cd'})
+
+			var data = tree.filter(e => checked.indexOf(e.value) > -1);
+			var options = [];
+			data.forEach(e => options.push(...e.children));
+
+			// 소속 대리점(또는 POS)이 있는 경우, 이에 해당하는 하위 조직만 조회 가능
+			if (fl_org[2]) {
+				options = options.filter(e => e.value == fl_org[2]);
+			}
+			if (fl_org[3]) {
+				options[0].children = options[0].children.filter(e => e.value == fl_org[3]);
+			}
+
+			options.sort((a, b) => {
+				return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+			});
+
+			if (data && data.length > 0) {
+				ts_org.parent = checked;
+				ts_org.options = options;
+				ts_org.mount();
+			}
+		}
+
+		/* 필터 기반 조회 */
+		function setByFilter() {
+			var filterInfo = ${filterInfo};
+
+			// 노출항목
+			var ft_listItem = filterInfo.filter(e => e.type == 'LIST_ITEM').map(e => e.col);
+			if (ft_listItem.length < 1) {
+				$('.list-item').prop('checked', true); // 필터 데이터 없는 경우 전체 항목 노출
+
+			} else {
+				$('.list-item').each(function() {
+					if (ft_listItem.indexOf($(this).val()) > -1) {
+						$(this).prop('checked', true);
+					} else {
+						$(this).prop('checked', false);
+					}
+				});
+			}
+
+			// 전체/로그인/로그아웃 탭
+			var typeFilter = filterInfo.filter(e => e.type == 'SEARCH_TYPE');
+			if (typeFilter && typeFilter.length > 0) {
+				searchType = toNumber(typeFilter[0].col);
+			}
+
+			$('.tab[data-type="' + searchType + '"]').addClass('btn-primary');
+			$('.tab[data-type="' + searchType + '"]').siblings('.tab').addClass('btn-clear');
+
+			// 리스트
+			var ft_list = filterInfo.filter(e => e.type == 'LIST').map(e => {
+				return {col: e.col, value: e.value}
+			});
+			var ft_d = [], ft_j = [];
+			ft_list.forEach(e => {
+				var org = orgInfo.filter(o => o.org_cd == e.col);
+				if (org.length > 0) {
+					var hirk = org[0].fl_org_cd.split('_');
+					ft_d.push(hirk[0]); // 담당
+					ft_j.push(hirk[1]); // 지점
+				}
+			});
+			if (!ts_d.disabled) {
+				ts_d.updateValue(ft_d);
+				setTree2Depth();
+			}
+			if (!ts_j.disabled) {
+				ts_j.updateValue(ft_j);
+				setTree3Depth();
+			}
+			if (!ts_org.disabled) {
+				ts_org.updateValue(ft_list.map(e => e.col));
+			}
+			if (ts_org.value.length > 0) {
+				submit(ft_list);
+			}
+
+			// 상담사현황 팝업
+			var ft_popup = filterInfo.filter(e => e.type == 'CHART');
+			if (ft_popup.length > 0) {
+				chart(ft_popup);
+			}
+		}
+
+		/* 필터저장 */
+		function saveFilter() {
+			var params = [];
+
+			// 리스트 (현재 조회 결과 기준으로 저장)
+			var list = {
+				page: page,
+				type: 'LIST',
+				data: listCols
+			};
+			params.push(getFilterData(list));
+
+			// 전체/로그인/로그아웃 탭
+			var type = {
+				page: page,
+				type: 'SEARCH_TYPE',
+				data: [{col: String(searchType)}]
+			};
+			params.push(getFilterData(type));
+
+			// 데이터 노출 항목 (로그인ID/상태/시간)
+			var listItem = {
+				page: page,
+				type: 'LIST_ITEM',
+				data: Array.from($('.list-item:checked').map((i, e) => { return {col: $(e).val()} }))
+			};
+			params.push(getFilterData(listItem));
+
+			// 상담사현황 팝업
+			var data = Array.from(new Set(popupCols.join().split(','))).sort(); // 중복 제거를 위함
+			var popup = {
+				page: page,
+				type: 'CHART',
+				data: data.map(e => { return {col: e} })
+			};
+			params.push(getFilterData(popup));
+
+			updateFilter(params);
+		}
+
+		/* 조회 */
+		function submit(data) {
+			if (data && data.length > 0) {
+				// 최초 접속 시 저장된 필터 정보로 조회
+				listCols = data;
+
+			} else {
+				// 사용자 직접 조회
+				if (!ts_d.value || ts_d.value.length < 1) {
+					alert('담당을 선택하세요');
+					return;
+				}
+
+				if (!ts_j.value || ts_j.value.length < 1) {
+					alert('지점을 선택하세요');
+					return;
+				}
+
+				if (!ts_org.value || ts_org.value.length < 1) {
+					alert('대리점/POS를 선택하세요');
+					return;
+				}
+
+				var value = ts_org.value;
+				listCols = orgInfo.filter(e => e.depth == 4 && value.indexOf(e.org_cd) > -1)
+								  .map((e, i) => { return {col: e.org_cd, value: e.org_name} });
+			}
+
+			onLoading(true);
+
+			$.ajax({
+				url         : fineServletURL + '/uplus/agent/pos/ajax',
+				type        : 'POST',
+				contentType : 'application/json',
+				data        : JSON.stringify({
+					searchType : searchType,
+					orgCds     : listCols.map(e => e.col)
+				}),
+				success     : function(res) {
+					var loginCnt = JSON.parse(res.loginCnt);
+					if (loginCnt && loginCnt.length > 0) {
+						setItem(res, listCols);
+
+					} else {
+						// 조회 결과 없는 경우
+						$('.no-data').show();
+						$('.grid').hide();
+						if (grid && !grid._isDestroyed) {
+							grid.destroy(true);
+						}
+					}
+
+					onLoading(false);
+				},
+				error       : function(request,status,error) {
+					BI.Msg.toast('상담사 현황 조회 실패', {level: 'error'});
+				}
+			});
+		}
+
+		var statusText = {1: '로그아웃', 2: '로그인', 3: '통화중'};
+
+		/* 화면단 데이터 갱신 */
+		function setItem(res, orgs) {
+			var data = JSON.parse(res.data);
+			var count = JSON.parse(res.loginCnt);
+			count.forEach(e => e.sort = orgs.findIndex(o => o.col == e.org_cd)); // 필터 저장된 정렬 순서
+			count.sort((a, b) => a.sort - b.sort);
+
+			// box 영역 append
+			count.forEach(e => {
+				var $box = $('<div>', {class: 'box'});
+				$box.append($('<div>', {class: 'title', text: '[' + e.org_cd + '] ' + e.org_name + ' (로그인 ' + toNumber(e.login_cnt + e.call_cnt) +')'}));
+				$box.append($('<div>', {class: 'item-wrapper d-grid'}));
+
+				$('.box-container > .grid').append($box);
+				$box.wrap($('<div>', {class: 'grid-item'}))
+					.wrap($('<div>', {class: 'item-content'}))
+					.wrap($('<div>', {class: 'box-wrapper', 'data-org-cd': e.org_cd, 'data-org-name': e.org_name}));
+			});
+
+			// 상담원 append
+			data.forEach(e => {
+				var $item = $('<div>', {class: 'item', id: e.agid, 'data-org-cd': e.org_cd, 'data-toggle': 'tooltip'});
+				$item.append($('<p>', {class: 'loginId', text: getLoginId(e.login_id)}));
+				$item.append($('<p>', {class: 'status', text: statusText[e.status]}));
+				$item.append($('<p>', {class: 'stafftime', text: getHis(e.stafftime)}));
+				$item.attr('title', Array.from($item.find('p').map((i, el) => $(el).text())).join('<br>'));
+				$item.tooltip({html: true});
+
+				if (e.status == 1) {
+					$item.addClass('logout');
+				}
+
+				$('.list-item').each((i, e) => $item.find('.' + $(e).val()).toggle($(e).prop('checked')));
+
+				$('.box-wrapper[data-org-cd="' + e.org_cd + '"]').find('.item-wrapper').append($item);
+			});
+
+			$('.no-data').hide();
+			if (grid && !grid._isDestroyed) {
+				grid.destroy(true);
+			}
+			createGrid();
+			setGridLayout(true);
+			$('.grid').show();
+		}
+
+		/* 상담사현황 팝업 */
+		function chart(data) {
+			var arr = [];
+
+			if (data && data.length > 0) {
+				// 최초 접속 시 저장된 필터 정보로 오픈
+				arr = data.filter(e => e.col).map(obj => obj.col);
+
+			} else {
+				// 사용자 직접 오픈
+				arr = ts_org.value;
+
+				if (arr.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+			}
+
+			if (arr.length < 1) {
+				return;
+			}
+
+			$('#chart-form').html('');
+
+			$(arr).each(function() {
+				$('#chart-form').append($('<input>', {type: 'hidden', name: 'orgCds', value: this}));
+			});
+
+			var popupName = 'c-' + Array.from(arr).join();
+			var w = $('input[name="orgCds"]').length > 1 ? 700 : 350;
+			var h = Math.ceil($('input[name="orgCds"]').length / 2) * 330;
+
+			window.open('', popupName, 'width=' + w + ',height=' + h);
+			$('#chart-form').attr('target', popupName);
+			$('#chart-form').submit();
+		}
+	</script>
+</head>
+<body>
+<form id="chart-form" action="/webroot/decision/uplus/agent/pos/chart" method="POST"></form>
+
+<div class="u-container">
+	<!--필터 영역-->
+	<div class="filter-wrapper shadow-sm d-table">
+		<div class="d-table-cell">
+			<div class="btn-group">
+				<button type="button" class="btn tab" data-type="0">전체</button>
+				<button type="button" class="btn tab" data-type="2">로그인</button>
+				<button type="button" class="btn tab" data-type="1">로그아웃</button>
+			</div>
+			<div class="tree-container custom-select" id="d-tree" data-placeholder="- 담당 -"></div>
+			<div class="tree-container custom-select" id="j-tree" data-placeholder="- 지점 -"></div>
+			<div class="tree-container custom-select" id="org-tree" data-placeholder="- 대리점/POS -"></div>
+			<button class="btn btn-info" onclick="submit();">조회</button>
+			<button class="btn btn-clear" id="btn-clear">초기화</button>
+			<button class="btn btn-info" onclick="chart();">상담사현황</button>
+
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="loginId">로그인ID</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="status">상태</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="stafftime">시간</label>
+			</span>
+		</div>
+
+		<div class="d-table-cell text-right">
+			<button class="btn btn-white" onclick="saveFilter();">필터저장</button>
+			<button class="btn btn-white" onclick="initFilter({page: page});">필터초기화</button>
+		</div>
+	</div>
+	<!--//필터 영역-->
+
+	<!--데이터 영역-->
+	<div class="box-container load-data">
+		<div class="no-data">데이터가 존재하지 않습니다</div>
+		<div class="grid" style="display:none;"></div>
+	</div>
+	<!--//데이터 영역-->
+</div>
+
+<script>
+	var col_size = 0; // 기존 컬럼 수
+	var grid;
+	var cLayoutEnd = false;
+
+	/* grid 적용 */
+	function createGrid() {
+		cLayoutEnd = false;
+
+		grid = new Muuri('.grid', {
+			dragEnabled: true,
+			items: '.grid-item',
+			layoutOnInit: false,
+			layoutDuration: 0,
+			layoutOnResize: 0
+		});
+
+		// container 영역 resize 이벤트 발생 시, grid layout 조정
+		var observer = new ResizeObserver(() => {
+			setGridLayout();
+		});
+		observer.observe(document.querySelector('.u-container'));
+
+		// box 이동 시, 필터 저장용 데이터 갱신 및 grid layout 조정
+		grid.on('dragReleaseEnd', function(item) {
+			grid.synchronize();
+			listCols = Array.from($('.box-wrapper').map((i, e) => {
+				return {col: $(e).data('org-cd'), value: $(e).data('org-name')}
+			}));
+			setGridLayout(true);
+		});
+
+		grid.on('layoutEnd', function() {
+			if (cLayoutEnd) {
+				onLoading(false);
+				cLayoutEnd = false;
+			}
+		});
+		grid.on('cLayoutEnd', function() {
+			cLayoutEnd = true;
+		});
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.simple-tree-picker.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/muuri.js"></script>
+	<style>
+		ul {display:inline-block;}
+		.u-container * {font-size:13px;font-weight:500;color:#221815;}
+		.box-container {text-align:center;margin:0 0 1.5rem;}
+		.grid {position:relative;margin:0 auto;}
+		.grid-item {position:absolute;margin:1.5rem 0 .5rem 1.75em;}
+
+		.box-wrapper {width:350;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
+		.box-wrapper:active {background-color:#b3bcc7;}
+		.box-wrapper:active .title {color:#fff;}
+		.box-wrapper:active .summary span {color:#fff;background:inherit;border-color:#fff;}
+		.box {height:fit-content;}
+		.box .title {padding-top:1rem;padding-bottom:.5rem;font-size:14px;}
+		.box .summary {line-height:1.5rem;padding-bottom:.15rem;}
+		.box .summary span {border-radius:10px;background-color:#f1f1f1;border:1px solid #c4c4cb;padding:.25rem .35rem;margin:0 .1rem;}
+		.item {grid-template-columns:repeat(4, 1fr);padding:.25rem;}
+		.item > div {padding:.25rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
+		.item > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+		.item > div p.name {font-weight:600;}
+		.item > div p.num, .item > div p.time {color:#999999;}
+		.item p.status {font-weight:600;text-align:center !important;}
+
+		.timeout p {color:#221815 !important;}
+		.timeout:has(.wait) {background-color:#e3e3c7;}
+		.timeout:has(.ib) {background-color:#bfd8ff;}
+		.timeout:has(.ob) {background-color:#f3cebc;}
+		.timeout:has(.after) {background-color:#feffd6;}
+		.timeout:has(.empty) {background-color:#b6dfe7;}
+
+		.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;width:100%;}
+		.filter-wrapper * {vertical-align:middle;}
+		.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+		.filter-wrapper select {width:85px;display:inline-block;padding-top:2px;}
+		.filter-wrapper label {vertical-align:middle;}
+		.filter-wrapper .checkbox-inline {line-height:21px;margin-right:0;}
+		.filter-wrapper .checkbox-inline:not(:first-child) {margin-left:.75rem;}
+		.filter-wrapper .checkbox-inline label {display:inline-flex;}
+		.filter-wrapper .checkbox-inline input[type=checkbox] {margin-right:5px;}
+
+		button, select {height:25px !important;}
+		.btn {line-height:12px;color:#fff;}
+		.btn-clear {background-color:#d9d9d9;}
+		.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+		.dropdown {display:inline-block;}
+		.dropdown .custom-select {width:300px;padding-top:2px;}
+		.dropdown .custom-select span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;display:inline-block;}
+		.dropdown-menu {width:300px;}
+
+		.status.wait {color:#808000 !important;}
+		.status.wait::before {content:'';background:url(/webroot/images/wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+		//.status.ib {color:#0000cd;}
+		.status.ib::before {content:'';background:url(/webroot/images/ib.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status.ob {color:#eb0000 !important;}
+		.status.ob::before {content:'';background:url(/webroot/images/ob.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status.after {color:#f1c40f !important;}
+		.status.after::before {content:'';background:url(/webroot/images/after.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+		.status.empty {color:#0d9ca3 !important;}
+		.status.empty::before {content:'';background:url(/webroot/images/empty.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+	</style>
+	<script>
+		const orgInfo = [
+			{
+				code: '1',
+				name: '강북영업담당',
+				children: [
+					{
+						code: '1_1',
+						name: '주식회사 웅장',
+						children: [
+							{
+								code: '1_1_1',
+								name: '오류동_오류역점'
+							},
+							{
+								code: '1_1_2',
+								name: '화곡동_목동사거리점'
+							},
+							{
+								code: '1_1_3',
+								name: '신월동_신월사거리점'
+							}
+						]
+					}
+				]
+			},
+			{
+				code: '2',
+				name: 'A담당',
+				children: [
+					{
+						code: '2_1',
+						name: 'A대리점',
+						children: [
+							{
+								code: '2_1_1',
+								name: 'AA영업점'
+							},
+							{
+								code: '2_1_2',
+								name: 'AB영업점'
+							},
+							{
+								code: '2_1_3',
+								name: 'AC영업점'
+							},
+							{
+								code: '2_1_4',
+								name: 'AD영업점'
+							}
+						]
+					}
+				]
+			},
+			{
+				code: '3',
+				name: 'B담당',
+				children: [
+					{
+						code: '3_1',
+						name: 'B대리점',
+						children: [
+							{
+								code: '3_1_1',
+								name: 'BA영업점'
+							},
+							{
+								code: '3_1_2',
+								name: 'BB영업점'
+							},
+							{
+								code: '3_1_3',
+								name: 'BC영업점'
+							}
+						]
+					}
+				]
+			}
+		];
+
+		$(document).ready(function() {
+			$('#org-dropdown-menu').treepicker({
+				tree      : orgInfo,
+				inputname : 'org',
+				code      : 'code',
+				codename  : 'name'
+			});
+
+			// class명 초기 세팅 (추후 제거 예정)
+			$(".item > div > p").each(function() {
+				const i = $(this).index();
+				if (i == 0) {
+					$(this).addClass("name");
+				} else if (i == 1) {
+					$(this).addClass("num");
+				} else if (i == 2) {
+					$(this).addClass('status');
+				} else if (i == 3) {
+					$(this).addClass("time");
+				}
+			});
+
+			$('p.status').remove();
+			$('.summary').remove();
+			$('.box-wrapper').each(function() {
+				const $title = $(this).find('.title');
+				const text = $title.text();
+				$title.text(text + ' (로그인 ' + $(this).find('.item > div').length + ')');
+			});
+
+			// 노출 항목 제어
+			$('input[name="view-data"]').click(function() {
+				if ($('input[name="view-data"]:checked').length < 1) {
+					alert("1개 이상 선택하세요");
+					$(this).prop("checked", true);
+					return;
+				}
+
+				const clz = $(this).data("class");
+				if ($(this).prop("checked")) {
+					$("."+clz).show();
+				} else {
+					$("."+clz).hide();
+				}
+
+				setLayout(true);
+			});
+
+			$('.btn-clear').on('click', function() {
+				grid.destroy();
+
+				$('.grid-item').show();
+
+				grid = new Muuri('.grid', {
+					dragEnabled: '${test}' == 'Y' ? false : true,
+					items: '.grid-item',
+					layoutDuration: 0,
+					layoutOnResize: 0
+				});
+
+				setLayout(true);
+
+				$('#org-dropdown-menu').treepicker('destroy');
+				$('#org-dropdown-menu').treepicker({
+					tree      : orgInfo,
+					inputname : 'org',
+					code      : 'code',
+					codename  : 'name'
+				});
+			});
+		});
+
+		/* 조회 */
+		function submit() {
+			if ($('input[name="org"]:checked').length < 1) {
+				alert('조직을 선택하세요');
+				return;
+			}
+
+			grid.destroy();
+
+			$('.grid-item').hide();
+
+			$('input[name="org"]:checked').each(function() {
+				$('.box-wrapper[data-num=' + $(this).val() + ']').parent().parent().show();
+			});
+
+			grid = new Muuri('.grid', {
+				dragEnabled: '${test}' == 'Y' ? false : true,
+				items: '.grid-item',
+				layoutDuration: 0,
+				layoutOnResize: 0
+			});
+
+			setLayout(true);
+		}
+	</script>
+</head>
+<body>
+<div class="u-container">
+	<div class="filter-wrapper shadow-sm d-table">
+		<div class="d-table-cell">
+			<div class="dropdown d-inline-block" id="org-dropdown">
+				<button type="button" class="custom-select text-left" data-toggle="dropdown">- 조직 -</button>
+				<div class="dropdown-menu" id="org-dropdown-menu"></div>
+			</div>
+			<button class="btn btn-info" onclick="submit();">조회</button>
+			<button class="btn btn-clear" onclick="clear();">초기화</button>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="view-data" data-class="name" checked="checked">이름</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="view-data" data-class="num" checked="checked">사번</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="view-data" data-class="time" checked="checked">시간</label>
+			</span>
+		</div>
+		<div class="d-table-cell text-right">
+			<button class="btn btn-white" onclick="saveFilter();">필터저장</button>
+			<button class="btn btn-white" onclick="initFilter({page: page, message: '해당 페이지의 필터가 전체 삭제됩니다.\n\n* 임계치 설정 포함'});">필터초기화</button>
+		</div>
+	</div>
+	<div class="box-container">
+<div class="grid">
+			<div class="box-wrapper" data-num="1_1_1">
+				<div class="box">
+					<div class="title">오류동_오류역점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p class="name">김수일A</p>
+							<p class="num">264001</p>
+							<p class="status ib">IB</p>
+							<p class="time">00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status empty">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status wait">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_2">
+				<div class="box">
+					<div class="title">화곡동_목동사거리점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일B</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이B</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼B</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사B</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일B</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이B</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:07:01</p>
+						</div>
+						<div>
+							<p>박세삼B</p>
+							<p>265003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사B</p>
+							<p>265004</p>
+							<p class="status empty">점심</p>
+							<p>00:02:21</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_3">
+				<div class="box">
+					<div class="title">신월동_신월사거리점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일C</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이C</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼C</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사C</p>
+							<p>264004</p>
+							<p class="status empty">점심</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일C</p>
+							<p>265001</p>
+							<p class="status empty">휴식</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이C</p>
+							<p>265002</p>
+							<p class="status wait">대기</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼C</p>
+							<p>265003</p>
+							<p class="status ib">IB</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사C</p>
+							<p>265004</p>
+							<p class="status ob">OB</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일C</p>
+							<p>265001</p>
+							<p class="status after">후처리</p>
+							<p>00:03:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="2_1_1">
+				<div class="box">
+					<div class="title">AA영업점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:07:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="2_1_2">
+				<div class="box">
+					<div class="title">AB영업점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="2_1_3">
+				<div class="box">
+					<div class="title">AC영업점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status empty">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status wait">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="2_1_4">
+				<div class="box">
+					<div class="title">AD영업점</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span>
+					</div>
+					<div class="item d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status ob">OB</p>
+							<p>00:12:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status empty">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status ob">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status after">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status empty">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status ib">IB</p>
+							<p>00:03:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+	<div class="box-wrapper" data-num="3_1_1">
+		<div class="box">
+			<div class="title">BA영업점</div>
+			<div class="summary">
+				<span>대기 0</span>
+				<span>IB 2</span>
+				<span>OB 2</span>
+				<span>후처리 2</span>
+				<span>이석 2</span>
+			</div>
+			<div class="item d-grid">
+				<div>
+					<p>김수일A</p>
+					<p>264001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>김수이A</p>
+					<p>264002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+				<div>
+					<p>김수삼A</p>
+					<p>264003</p>
+					<p class="status after">후처리</p>
+					<p>00:00:11</p>
+				</div>
+				<div>
+					<p>김수사A</p>
+					<p>264004</p>
+					<p class="status empty">휴식</p>
+					<p>00:02:21</p>
+				</div>
+				<div>
+					<p>박세일A</p>
+					<p>265001</p>
+					<p class="status ib">IB</p>
+					<p>00:07:01</p>
+				</div>
+				<div>
+					<p>박세이A</p>
+					<p>265002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+				<div>
+					<p>박세삼A</p>
+					<p>265003</p>
+					<p class="status after">후처리</p>
+					<p>00:00:11</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="box-wrapper" data-num="3_1_2">
+		<div class="box">
+			<div class="title">BB영업점</div>
+			<div class="summary">
+				<span>대기 0</span>
+				<span>IB 2</span>
+				<span>OB 2</span>
+				<span>후처리 2</span>
+				<span>이석 2</span>
+			</div>
+			<div class="item d-grid">
+				<div>
+					<p>김수일A</p>
+					<p>264001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>김수이A</p>
+					<p>264002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+				<div>
+					<p>김수삼A</p>
+					<p>264003</p>
+					<p class="status after">후처리</p>
+					<p>00:00:11</p>
+				</div>
+				<div>
+					<p>김수사A</p>
+					<p>264004</p>
+					<p class="status empty">휴식</p>
+					<p>00:02:21</p>
+				</div>
+				<div>
+					<p>박세일A</p>
+					<p>265001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>박세이A</p>
+					<p>265002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="box-wrapper" data-num="3_1_3">
+		<div class="box">
+			<div class="title">BC영업점</div>
+			<div class="summary">
+				<span>대기 0</span>
+				<span>IB 2</span>
+				<span>OB 2</span>
+				<span>후처리 2</span>
+				<span>이석 2</span>
+			</div>
+			<div class="item d-grid">
+				<div>
+					<p>김수일A</p>
+					<p>264001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>김수이A</p>
+					<p>264002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+				<div>
+					<p>김수삼A</p>
+					<p>264003</p>
+					<p class="status after">후처리</p>
+					<p>00:00:11</p>
+				</div>
+				<div>
+					<p>김수사A</p>
+					<p>264004</p>
+					<p class="status empty">휴식</p>
+					<p>00:02:21</p>
+				</div>
+				<div>
+					<p>박세일A</p>
+					<p>265001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>박세이A</p>
+					<p>265002</p>
+					<p class="status ob">OB</p>
+					<p>00:02:01</p>
+				</div>
+				<div>
+					<p>박세삼A</p>
+					<p>265003</p>
+					<p class="status after">후처리</p>
+					<p>00:00:11</p>
+				</div>
+				<div>
+					<p>박세사A</p>
+					<p>265004</p>
+					<p class="status empty">교육</p>
+					<p>00:02:21</p>
+				</div>
+				<div>
+					<p>이지일A</p>
+					<p>266001</p>
+					<p class="status ib">IB</p>
+					<p>00:03:01</p>
+				</div>
+				<div>
+					<p>이지일A</p>
+					<p>266002</p>
+					<p class="status wait">대기</p>
+					<p>00:02:01</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</div> <!--//.grid-->
+	</div>
+</div>
+
+<script>
+	// for test
+	$('.box-wrapper').wrap('<div class="item-content"></div>');
+	$('.item-content').wrap('<div class="grid-item"></div>');
+	// for test
+
+	let col_size = 0; // 기존 컬럼 수
+
+	let grid = new Muuri('.grid', {
+		dragEnabled: '${test}' == 'Y' ? false : true,
+		items: '.grid-item',
+		layoutDuration: 0,
+		layoutOnResize: 0
+	});
+
+	// box 이동 시, setLayout() 실행
+	grid.on('dragReleaseEnd', function(item) {
+		grid.synchronize();
+		setLayout(true);
+	});
+
+	// container 영역 resize 이벤트 발생 시, setLayout() 실행
+	const observer = new ResizeObserver((entries) => {
+		for (let entry in entries) {
+			setLayout();
+		}
+	});
+	observer.observe(document.querySelector('.u-container'));
+
+	/*
+		각 box 영역 height 지정
+		grid layout 라이브러리로 인해 빈 공간이 채워지는 것을 재조정하기 위함 (가시성)
+	*/
+	function setLayout(init) {
+		//const $boxwrapper = $('.box-wrapper');
+		const $boxwrapper = $('.box-wrapper:visible'); ///////////////// for test
+
+		if ($boxwrapper.length < 1) return;
+
+		let top = $boxwrapper.eq(0).offset().top;
+
+		// 화면에 보여지는 컬럼 수 체크
+		let size = 0;
+		$boxwrapper.each(function() {
+			if (top == $(this).offset().top) {
+				size++;
+			} else {
+				return false;
+			}
+		});
+
+		// 기존 컬럼 수와 현재 컬럼 수가 다른 경우, 각 box 영역의 height 변경
+		// box가 해당하는 row에서 최대 높이를 가진 box 영역과 동일하게 변경
+		if (col_size != size || init) {
+			// row별로 진행
+			for (let i=0; i<$boxwrapper.length; i+=size) {
+				const subItems = $boxwrapper.slice(i, i+size);
+				subItems.sort((a, b) => $(b).find('.box').height() - $(a).find('.box').height());
+
+				const maxH = $(subItems[0]).find('.box').height(); // 최대 height
+				$(subItems).each(function() {
+					$(this).height(maxH);
+				});
+			}
+
+			col_size = size;
+			grid.refreshItems().layout();
+		}
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.simple-tree-picker.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/muuri.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+	<style>
+		ul {display:inline-block;}
+		.u-container * {font-size:13px;font-weight:500;color:#221815;}
+		.box-container {text-align:center;margin:0 0 1.5rem;}
+		.grid {position:relative;margin:0 auto;}
+		.grid-item {position:absolute;margin:1.5rem .75rem .5rem;}
+
+		.box-wrapper {width:350px;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
+		.box-wrapper:active {background-color:#b3bcc7;}
+		.box-wrapper:active .title {color:#fff;}
+		.box-wrapper:active .summary span {color:#fff;background:inherit;border:0;}
+		.box {height:fit-content;}
+		.box .title {padding-top:.75rem;padding-bottom:.5rem;font-size:14px;}
+		.box .summary {line-height:1.5rem;padding-bottom:.15rem;}
+		.box .summary span {border-radius:10px;background-color:#f1f1f1;border:1px solid #c4c4cb;padding:.25rem .35rem;margin:0 .1rem;}
+		.item-wrapper {grid-template-columns:repeat(4, calc(342px/4));padding:4px;}
+		.item-wrapper > div.item {padding:.25rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
+		.item-wrapper > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+		.item-wrapper > div p.name {font-weight:600;}
+		.item-wrapper > div p.num, .item-wrapper > div p.time {color:#999999;}
+		.item-wrapper p.status {font-weight:600;text-align:center !important;}
+
+		.timeout p {color:#221815 !important;}
+		.timeout:has(.WaitForNextCall) {background-color:#e3e3c7 !important;}
+		.timeout:has(.CallInbound) {background-color:#bfd8ff !important;}
+		.timeout:has(.CallOutbound) {background-color:#f3cebc !important;}
+		.timeout:has(.AfterCallWork) {background-color:#feffd6 !important;}
+		.timeout:has(.NotReadyForNextCall) {background-color:#b6dfe7 !important;}
+
+		.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;}
+		.filter-wrapper > *:not(:last-child) {margin-right:.15rem;}
+		.filter-wrapper select {width:10em;display:inline-block;padding-top:2px;}
+		.filter-wrapper label {vertical-align:middle;}
+		.filter-wrapper .checkbox-inline {line-height:21px;margin-right:0;}
+		.filter-wrapper .checkbox-inline:not(:first-child) {margin-left:.75rem;}
+		.filter-wrapper .checkbox-inline label {display:inline-flex;}
+		.filter-wrapper .checkbox-inline input[type=checkbox] {margin-right:5px;}
+		@media (min-width:998px) {
+			.md-right {float:right;}
+		}
+		@media (max-width:998px) {
+			.md-right {float:none;}
+		}
+
+		button, select {height:25px !important;}
+		.btn {line-height:12px;color:#fff;}
+		.btn-clear {background-color:#d9d9d9;}
+		.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+		.dropdown, .dropdown-menu {width:20em;}
+		.dropdown .custom-select {padding-top:2px;}
+		//.dropdown .custom-select span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;display:inline-block;}
+
+		.status.WaitForNextCall {color:#808000 !important;}
+		.status.WaitForNextCall::before {content:'';background:url(/webroot/ssoagent/images/icon_wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		//.status.CallInbound {color:#0000cd;}
+		.status.CallInbound::before {content:'';background:url(/webroot/ssoagent/images/icon_ib.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status.CallOutbound {color:#eb0000 !important;}
+		.status.CallOutbound::before {content:'';background:url(/webroot/ssoagent/images/icon_ob.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status.AfterCallWork {color:#f1c40f !important;}
+		.status.AfterCallWork::before {content:'';background:url(/webroot/ssoagent/images/icon_acw.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall {color:#0d9ca3 !important;}
+		.status.NotReadyForNextCall:not([data-auxstatus])::before {content:'';background:url(/webroot/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+		.status.EtcGroup::before {content:'';background:url(/webroot/images/icon_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+		.status.NotReadyForNextCall[data-auxstatus="Massage"]::before {content:'';background:url(/webroot/images/icon_aux_massage.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Rest"]::before {content:'';background:url(/webroot/images/icon_aux_rest.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Mentoring"]::before {content:'';background:url(/webroot/images/icon_aux_mentoring.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Education"]::before {content:'';background:url(/webroot/images/icon_aux_edu.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Psychological counseling"]::before {content:'';background:url(/webroot/images/icon_aux_counseling.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Data processing"]::before {content:'';background:url(/webroot/images/icon_aux_dataprcsng.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status.NotReadyForNextCall[data-auxstatus="Etc"]::before {content:'';background:url(/webroot/images/icon_aux_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+		[data-tooltip] {position:relative;}
+		[data-tooltip]:before,
+		[data-tooltip]:after {visibility:hidden;opacity:0;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;transition:all .2s ease;font-size:12px;font-weight:300;}
+		[data-tooltip]:before {content:attr(data-tooltip);position:absolute;top:0;padding:5px 10px;border-radius:5px;color:#fff;background:#025272;box-shadow:0 3px 8px rgba(165, 165, 165, 0.5);}
+		[data-tooltip]:after {content:'';border-left:5px solid transparent;top:2px;border-right:5px solid transparent;border-top:5px solid #025272;}
+		[data-tooltip]:not([data-tooltip=""]):hover:before {visibility:visible;opacity:1;top:0;}
+		[data-tooltip]:not([data-tooltip=""]):hover:after {visibility:visible;opacity:1;top:22px;}
+	</style>
+	<script>
+		const orgInfo = arrayToTree({data: ${orgInfo}, key: 'org_cd', parentKey: 'hirk_org_cd'});
+
+		$(document).ready(function() {
+			$(orgInfo).each(function() {
+				if (this.ex_dpt_level < 3) {
+					$('#chn').append($('<option></option>', { value: this.org_cd, text: this.org_name }));
+				}
+			});
+
+			// 노출 항목 제어
+			$('input[name="list-item"]').change(function() {
+				if ($('input[name="list-item"]:checked').length < 1) {
+					alert("1개 이상 선택하세요");
+					$(this).prop("checked", true);
+					return;
+				}
+
+				const clz = $(this).val();
+				if ($(this).prop("checked")) {
+					$("."+clz).show();
+				} else {
+					$("."+clz).hide();
+				}
+
+				setLayout(true);
+			});
+
+			initByFilter();
+
+			$('#chn').change(function() {
+				const chn = $(this).val();
+				let data = [];
+				$(orgInfo).each(function() {
+					if (this.org_cd == chn) {
+						data = this.children;
+						return false;
+					}
+				});
+
+				if (data.length > 0) {
+					$('#org-dropdown-menu').treepicker('destroy');
+					$(data).each(function() {
+						$('#org-dropdown-menu').treepicker({
+							tree     : this,
+							inputname: 'org',
+							code     : 'org_cd',
+							codename : 'org_name'
+						});
+					});
+
+					$('#org-dropdown button').prop('disabled', false);
+
+				} else {
+					$('#org-dropdown button').prop('disabled', true);
+				}
+			});
+
+			// class명 초기 세팅 (추후 제거 예정)
+			$('.item-wrapper > div').addClass('item');
+			let num = 264001;
+			$(".item > p").each(function() {
+				const i = $(this).index();
+
+				if (i == 0) {
+					$(this).addClass("name");
+				} else if (i == 1) {
+					$(this).addClass("num").text(num);
+					$(this).parent().attr('id', $(this).text());
+					num++;
+				} else if (i == 2) {
+					$(this).addClass("status");
+				} else if (i == 3) {
+					$(this).addClass("time");
+				}
+			});
+
+			$('.btn-group > button').on('click', function() {
+				if ($(this).hasClass('btn-primary'))
+					return;
+
+				$(this).removeClass('btn-clear').addClass('btn-primary');
+				$(this).siblings('button').removeClass('btn-primary').addClass('btn-clear');
+			});
+		});
+
+		function initByFilter() {
+			const filterData = ${filterData};
+
+			const fList      = filterData.filter(e => e.type == 'LIST');
+			const fListItem  = filterData.filter(e => e.type == 'LIST_ITEM');
+			const fPopup     = filterData.filter(e => e.type == 'CHART_POPUP');
+			const fThreshold = filterData.filter(e => e.type == 'THRESHOLD');
+
+			// ...
+
+			// 팝업
+			chart({type: 'init', data: fPopup});
+		}
+
+		const status = {wait: '대기', ob: 'OB', ib: 'IB', after: '후처리', empty: '휴식'};
+		let test = 0;
+		function startInterval() {
+			if (test > 0) return;
+
+			test = setInterval(function() {
+				$('.item').each(function() {
+					const $time = $(this).find('.time');
+					let iTime = getSS($time.text());
+
+					if (iTime >= 240) {
+						if ($(this).hasClass('timeout')) {
+							$(this).removeClass('timeout');
+						}
+						const i = Math.floor(Math.random() * 5) //random
+						const $status = $(this).find('.status');
+						$status.text(Object.values(status)[i]);
+						$status.attr('class', 'status ' + Object.keys(status)[i]);
+
+						iTime = -1;
+
+					} else if (iTime >= 210) {
+						$(this).addClass('timeout');
+
+					} else {
+						if ($(this).hasClass('timeout')) {
+							$(this).removeClass('timeout');
+						}
+					}
+
+					$time.text(getHis(++iTime));
+				});
+			}, 1000);
+		}
+		function stopInterval() {
+			clearInterval(test);
+			test = 0;
+		}
+
+		/* 조회 */
+		function submit() {
+			if (!Boolean($('#chn').val())) {
+				alert('채널을 선택하세요');
+				return;
+			}
+
+			if ($('input[name="org"]:checked').length < 1) {
+				alert('센터/그룹/팀을 선택하세요');
+				return;
+			}
+
+			$('.box-wrapper').hide();
+			$('input[name="org"]:checked').each(function() {
+				$('.box-wrapper[data-num=' + $(this).val() + ']').show();
+			});
+
+			setLayout(true);
+		}
+
+		/* 상담사현황 차트 팝업 */
+		function chart(param) {
+			let arr = [];
+
+			if (param && param.type == 'init') {	// 최초 접속 시 저장된 필터 정보로 오픈
+				if (!param.data || param.data.length < 1)
+					return;
+
+				arr = param.data.map(obj => obj.col);
+
+			} else {	// 사용자 직접 오픈
+				if ($('input[name="org"][data-level="4"]:checked').length < 1) {
+					alert('그룹을 선택하세요');
+					return;
+				}
+
+				arr = $('input[name="org"][data-level="4"]:checked').map((i, el) => $(el).next().text()).sort();
+			}
+
+			$('#chart-form').html('');
+
+			$(arr).each(function() {
+				$('#chart-form').append($('<input>', { type: 'hidden', name: 'group', value: this }));
+			});
+
+			const popupName = 'c-' + Array.from(arr).join();
+			const w = $('input[name=group]').length > 1 ? 580 : 290;
+			const h = Math.ceil($('input[name=group]').length / 2) * 330;
+
+			window.open('', popupName, 'width=' + w + ',height=' + h);
+			$('#chart-form').attr('target', popupName);
+			$('#chart-form').submit();
+		}
+
+		/* 필터저장 */
+		function saveFilter() {
+			const params = [];
+			params.push(listFilterData());
+			params.push(popupFilterData());
+			params.push(listItemFilterData());
+
+			setFilter(params);
+		}
+
+		function listFilterData() {
+			const dflt = {
+				userId: userId,
+				page: 'CONSULTANT_TABLE',
+				type: 'LIST'
+			};
+
+			// 이후 visible 제거
+			const cols = Array.from($('.box-wrapper:visible').map(function(i, el) {
+										return {
+											userId: userId,
+											page: 'CONSULTANT_TABLE',
+											type: 'LIST',
+											col: $(el).data('num'),
+											sort: i+1
+										};
+									}));
+
+			return $.extend({ dataList: cols }, dflt);
+		}
+
+		function popupFilterData() {
+			const dflt = {
+				userId: userId,
+				page: 'CONSULTANT_TABLE',
+				type: 'CHART_POPUP'
+			};
+
+			if (!window.popupCols || window.popupCols.length < 1) {
+				return dflt;
+			}
+
+			const set = new Set(popupCols.join().split(',').sort());
+
+			let i = 0,
+				cols = [];
+
+			set.forEach(function(value) {
+				cols.push({
+					userId: userId,
+					page: 'CONSULTANT_TABLE',
+					type: 'CHART_POPUP',
+					col: value,
+					sort: ++i
+				});
+			});
+
+			return $.extend({ dataList: cols }, dflt);
+		}
+
+		function listItemFilterData() {
+			const dflt = {
+				userId: userId,
+				page: 'CONSULTANT_TABLE',
+				type: 'LIST_ITEM'
+			};
+
+			const cols = Array.from($('[name="list-item"]:checked').map(function(i, el) {
+										return {
+											userId: userId,
+											page: 'CONSULTANT_TABLE',
+											type: 'LIST_ITEM',
+											col: $(el).val(),
+											sort: i+1
+										};
+									}));
+
+			return $.extend({ dataList: cols }, dflt);
+		}
+	</script>
+</head>
+<body>
+<form id="chart-form" action="/webroot/decision/uplus/status/consultant/chart" method="GET"></form>
+
+<div class="u-container">
+	<div class="filter-wrapper shadow-sm">
+		<select class="custom-select" id="chn">
+			<option value="">- 채널 -</option>
+		</select>
+		<div class="dropdown d-inline-block" id="org-dropdown">
+			<button type="button" class="custom-select text-left" data-toggle="dropdown" disabled="disabled">- 센터/그룹/팀 -</button>
+			<div class="dropdown-menu" id="org-dropdown-menu"></div>
+		</div>
+		<button class="btn btn-info" onclick="submit();">조회</button>
+		<button class="btn btn-clear" onclick="clear();">초기화</button>
+		<button class="btn btn-info" onclick="chart();">상담사현황</button>
+		<span class="checkbox-inline">
+			<label><input type="checkbox" name="list-item" id="list-item-name" value="name" checked="checked">이름</label>
+		</span>
+		<span class="checkbox-inline">
+			<label><input type="checkbox" name="list-item" id="list-item-num" value="num" checked="checked">사번</label>
+		</span>
+		<span class="checkbox-inline">
+			<label><input type="checkbox" name="list-item" id="list-item-status" value="status" checked="checked">상태</label>
+		</span>
+		<span class="checkbox-inline">
+			<label><input type="checkbox" name="list-item" id="list-item-time" value="time" checked="checked">시간</label>
+		</span>
+		<div class="btn-group md-right ml-1">
+			<button class="btn btn-primary" onclick="startInterval();">화면테스트(임계치3분30초)</button>
+			<button class="btn btn-clear" onclick="stopInterval();">중단</button>
+		</div>
+		<button class="btn btn-white md-right" onclick="saveFilter();">필터저장</button>
+	</div>
+	<div class="box-container">
+		<div class="grid">
+			<div class="box-wrapper" data-num="1_1_1_1">
+				<div class="box">
+					<div class="title">AA고객상담1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p class="name">김수일A</p>
+							<p class="num">264001</p>
+							<p class="status CallInbound">IB</p>
+							<p class="time">00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div class="timeout">
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_1_2">
+				<div class="box">
+					<div class="title">AA고객상담2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일B</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이B</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼B</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사B</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일B</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div class="timeout">
+							<p>박세이B</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:07:01</p>
+						</div>
+						<div>
+							<p>박세삼B</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사B</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">점심</p>
+							<p>00:02:21</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_1_3">
+				<div class="box">
+					<div class="title">AA고객케어1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일C</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이C</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼C</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사C</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">점심</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일C</p>
+							<p>265001</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이C</p>
+							<p>265002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼C</p>
+							<p>265003</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사C</p>
+							<p>265004</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일C</p>
+							<p>265001</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:03:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_1_4">
+				<div class="box">
+					<div class="title">AA고객케어2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div class="timeout">
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:07:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_2_1">
+				<div class="box">
+					<div class="title">AB고객상담1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_2_2">
+				<div class="box">
+					<div class="title">AB고객상담2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div class="timeout">
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_2_3">
+				<div class="box">
+					<div class="title">AB고객케어1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:12:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div class="timeout">
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_2_4">
+				<div class="box">
+					<div class="title">AB고객케어2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_3_1">
+				<div class="box">
+					<div class="title">AC고객상담1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>최수일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>최수이A</p>
+							<p>266002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>최수삼A</p>
+							<p>266003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>최수사A</p>
+							<p>266004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_3_2">
+				<div class="box">
+					<div class="title">AC고객상담2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_3_3">
+				<div class="box">
+					<div class="title">AC고객케어1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_1_3_4">
+				<div class="box">
+					<div class="title">AC고객케어2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div class="timeout">
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:09:23</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_1_1">
+				<div class="box">
+					<div class="title">BA고객상담1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_1_2">
+				<div class="box">
+					<div class="title">BA고객상담2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_1_3">
+				<div class="box">
+					<div class="title">BA고객케어1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_1_4">
+				<div class="box">
+					<div class="title">BA고객케어2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_2_1">
+				<div class="box">
+					<div class="title">BB고객상담1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_2_2">
+				<div class="box">
+					<div class="title">BB고객상담2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div class="timeout">
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:08:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_2_3">
+				<div class="box">
+					<div class="title">BB고객케어1팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세일A</p>
+							<p>265001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="box-wrapper" data-num="1_2_2_4">
+				<div class="box">
+					<div class="title">BB고객케어2팀</div>
+					<div class="summary">
+						<span>대기 0</span>
+						<span>IB 2</span>
+						<span>OB 2</span>
+						<span>후처리 2</span>
+						<span>이석 2</span><span>기타 2</span>
+					</div>
+					<div class="item-wrapper d-grid">
+						<div>
+							<p>김수일A</p>
+							<p>264001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>김수이A</p>
+							<p>264002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>김수삼A</p>
+							<p>264003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>김수사A</p>
+							<p>264004</p>
+							<p class="status NotReadyForNextCall">휴식</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>박세이A</p>
+							<p>265002</p>
+							<p class="status CallOutbound">OB</p>
+							<p>00:02:01</p>
+						</div>
+						<div>
+							<p>박세삼A</p>
+							<p>265003</p>
+							<p class="status AfterCallWork">후처리</p>
+							<p>00:00:11</p>
+						</div>
+						<div>
+							<p>박세사A</p>
+							<p>265004</p>
+							<p class="status NotReadyForNextCall">교육</p>
+							<p>00:02:21</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266001</p>
+							<p class="status CallInbound">IB</p>
+							<p>00:03:01</p>
+						</div>
+						<div>
+							<p>이지일A</p>
+							<p>266002</p>
+							<p class="status WaitForNextCall">대기</p>
+							<p>00:02:01</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div> <!--//.grid-->
+	</div>
+</div>
+
+<script>
+	// for test
+	$('.box-wrapper').wrap('<div class="item-content"></div>');
+	$('.item-content').wrap('<div class="grid-item"></div>');
+	// for test
+
+	let col_size = 0; // 기존 컬럼 수
+
+	const grid = new Muuri('.grid', {
+		dragEnabled: '${test}' == 'Y' ? false : true,
+		//dragEnabled: true,
+		items: '.grid-item',
+		layoutDuration: 0,
+		layoutOnResize: 0
+	});
+
+	// box 이동 시, setLayout() 실행
+	grid.on('dragReleaseEnd', function(item) {
+		grid.synchronize();
+		setLayout(true);
+	});
+
+	// container 영역 resize 이벤트 발생 시, setLayout() 실행
+	const observer = new ResizeObserver((entries) => {
+		for (let entry in entries) {
+			setLayout();
+		}
+	});
+	observer.observe(document.querySelector('.u-container'));
+
+	/*
+		각 box 영역 height 지정
+		grid layout 라이브러리로 인해 빈 공간이 채워지는 것을 재조정하기 위함 (가시성)
+	*/
+	function setLayout(init) {
+		let top = $('.box-wrapper').eq(0).offset().top;
+
+		// 화면에 보여지는 컬럼 수 체크
+		let size = 0;
+		$('.box-wrapper').each(function() {
+			if (top == $(this).offset().top) {
+				size++;
+			} else {
+				return false;
+			}
+		});
+
+		// 기존 컬럼 수와 현재 컬럼 수가 다른 경우, 각 box 영역의 height 변경
+		// box가 해당하는 row에서 최대 높이를 가진 box 영역과 동일하게 변경
+		if (col_size != size || init) {
+			// row별로 진행
+			for (let i=0; i<$('.box-wrapper').length; i+=size) {
+				const subItems = $('.box-wrapper').slice(i, i+size);
+				subItems.sort((a, b) => $(b).find('.box').height() - $(a).find('.box').height());
+
+				const maxH = $(subItems[0]).find('.box').height(); // 최대 height
+				$(subItems).each(function() {
+					$(this).height(maxH);
+				});
+			}
+
+			col_size = size;
+			grid.refreshItems().layout();
+		}
+	}
+
+///////////////////////////////////////////////////////// winker test
+
+	let winker;
+
+	function wsConnect() {
+		winker = new winkWebSocket();
+		const strHostP      = 'localhost';
+		const intPortP      = 9000;
+		const strHostB      = 'localhost';
+		const intPortB      = 9000;
+		const eventCallback = wsCallback;
+		const logCallback   = null;
+		const consoleFlag   = true;
+		const wssFlag       = false;
+
+		winker.wConnect(strHostP, intPortP, strHostB, intPortB, eventCallback, logCallback, consoleFlag, wssFlag);
+	}
+
+	const strObjectID = 'a73790f1-2e6f-4738-b2b2-fa659aaed47a';
+	const strStatID = [111, 113, 115, 116, 117, 119].join(STA_DIM);
+
+	function wsOpen() {
+		winker.wOpenStat(strObjectID, strStatID);
+	}
+
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(function() {
+				wsOpen();
+			}, 1000);
+		}
+
+		if (eventId == WMessageType.EventStatInfo) {
+			setData(objectDBId, objectType, statId, statVal);
+		}
+	}
+
+	function wsClose() {
+		winker.wCloseStat(strObjectID, strStatID);
+	}
+
+	function wsDisconnect() {
+		winker.wDisconnect();
+	}
+
+	const vOrgInfo = ${vOrgInfo};
+	const userInfo = ${userInfo};
+
+	const wStat = {};
+	const statCols = {111: 'name', 113: 'num', 115: 'status', 116: 'status', 117: 'auxStatus', 119: 'time'};
+
+	/*
+		websocket callback function
+	*/
+	function setData(dbId, type, statId, statVal) {
+		if (!wStat[dbId]) {
+			const stat = new Map();
+			for (var key in statCols) {
+				stat.put(statCols[key], ''); // {name: '', num: '', status: '', ...}
+			}
+			wStat[dbId] = stat;
+		}
+
+		wStat[dbId].put(statCols[statId], statVal);
+
+		setItem(dbId);
+	}
+
+	/*
+		websocket 데이터 수신 후 화면단 처리
+	*/
+	function setItem(dbId) {
+		const stat = wStat[dbId];
+		let $item = $('#' + dbId);
+
+		if (stat.values().indexOf('') > -1) {
+			return;
+		}
+
+		if (stat.get('status') == '0' || stat.get('status') == '1') {
+			$item.remove();
+			return;
+		}
+
+		if ($item.length < 1) {
+			$item = $('<div>', {class: 'item', id: dbId, 'data-org': userInfo.filter(e => e.agid == dbId)[0].org_cd});
+			$item.append($('<p>', {class: 'name'}));
+			$item.append($('<p>', {class: 'num'}));
+			$item.append($('<p>', {class: 'status'}));
+			$item.append($('<p>', {class: 'time'}));
+
+			$('.item-wrapper:eq(0)').append($item); // eq 0 for test
+		}
+
+		stat.keys().forEach(function(key) {
+			let value = stat.get(key);
+			const $p = $item.find('.' + key);
+
+			if ($p.length < 1) return false;
+
+			if (key == 'status') {
+				// 화면에 표기되는 대기,이석,후처리,OB,IB 5개 상태를 제외한 나머지 상태는 '기타'로 표기
+				if (['3','4','5','14','15'].indexOf(value) < 0) {
+					value = '99';
+				}
+
+				if (value == '4' && WAuxStatus[stat.get('auxStatus')]) {
+					$p.text(WAuxStatus[stat.get('auxStatus')].text);
+					$p.attr('data-auxstatus', WAuxStatus[stat.get('auxStatus')].name);
+
+				} else {
+					$p.text(WAgentStatus[value].text);
+					$p.removeAttr('data-auxstatus');
+				}
+
+				$p.attr('class', 'status ' + WAgentStatus[value].name);
+
+			} else if (key == 'time') {
+				$p.text(getHis(value));
+				if (value >= 60) {
+					$item.addClass('timeout');
+
+				} else {
+					$item.removeClass('timeout');
+				}
+
+			} else {
+				$p.text(value);
+			}
+		});
+
+		//$item.attr('data-tooltip', Array.from($item.find('p').map((i, el) => $(el).text())).join('/'));
+	}
+</script>
+</body>
+</html>

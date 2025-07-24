@@ -1,0 +1,187 @@
+<style>
+	#modal-threshold button.close > span {font-size:17px;}
+	#modal-threshold .table th,
+	#modal-threshold .table td {vertical-align:middle;padding:.5rem .75rem;}
+	#modal-threshold .form-control {display:inline-block;width:2.6em;height:25px;text-align:right;padding:.375rem .5rem;}
+	#modal-threshold .form-control::placeholder {color:#ccc;}
+	#modal-threshold .form-control[disabled] {color:#ccc;}
+	#modal-threshold input[type="number"]::-webkit-outer-spin-button,
+	#modal-threshold input[type="number"]::-webkit-inner-spin-button {-webkit-appearance:none;margin:0;}
+
+	#modal-threshold .bgcolor {display:inline-block;width:1em;height:1em;border-radius:1em;vertical-align:middle;margin:0 5px 1px 0;}
+	#WaitForNextCall .bgcolor {background-color:#b3b366;}
+	#CallInbound .bgcolor {background-color:#6666e1;}
+	#CallOutbound .bgcolor {background-color:#f36666;}
+	#AfterCallWork .bgcolor {background-color:#f7dc6f;}
+	#NotReadyForNextCall .bgcolor {background-color:#6ec4c8;}
+</style>
+
+<script>
+	$(document).ready(function() {
+		// 기존 저장된 데이터 처리
+		var data = ${data};
+		data.forEach(e => {
+			var $tr = $('#' + e.col);
+			$tr.find('.use-yn').prop('checked', true);
+
+			var values = getHis(e.value).split(':');
+			$tr.find('[type="number"]').each(function() {
+				$(this).val(values[$(this).index()]);
+				$(this).prop('disabled', false);
+			});
+		});
+
+		$('#modal-threshold .use-yn').on('change', function() {
+			$(this).closest('tr').find('[type="number"]').prop('disabled', !$(this).prop('checked')).val('');
+		});
+
+		$('#modal-threshold [type="number"]').on('blur', function() {
+			validate($(this));
+		});
+	});
+
+	/* 시분초 입력값 유효성 체크 */
+	function validate($input) {
+		var n = $input.val();
+
+		if (n == '' || isNaN(n)) {
+			n = '00';
+			$input.val(n);
+		}
+
+		if ($input.index() == 0) {
+			if (!(0 <= Number(n) && Number(n) <= 23)) {
+				$input.val('00').focus();
+				return -1;
+			}
+
+		} else {
+			if (!(0 <= Number(n) && Number(n) <= 59)) {
+				$input.val('00').focus();
+				return -1;
+			}
+		}
+
+		if (n.length < 2 && Number(n) < 10) $input.val('0' + n);
+
+		return n;
+	}
+
+	/* 저장 */
+	function saveThreshold() {
+		var params = {
+			userId: userId,
+			page: page,
+			type: 'THRESHOLD',
+			dataList: []
+		};
+
+		var data = {};
+		var valid = true;
+
+		$('#modal-threshold .use-yn:checked').each(function() {
+			var $tr = $(this).closest('tr');
+
+			var s = getSS([...$tr.find('[type="number"]').map((i, e) => toNumber($(e).val()))].join(':'));
+			if (s <= 0) {
+				valid = false;
+				return false;
+			}
+
+			var col = $tr.attr('id');
+			data[col] = s;
+		});
+
+		if (!valid) {
+			BI.Msg.toast('올바르지 않은 형식입니다', {level: 'error'});
+			return;
+		}
+
+		Object.keys(data).forEach((key, i) => {
+			params.dataList.push({
+				userId: userId,
+				page: page,
+				type: 'THRESHOLD',
+				col: key,
+				value: data[key],
+				sort: ++i
+			});
+		});
+
+		if (updateFilter([params])) {
+			ft_threshold = data;
+
+			ts_chn.updateValue(channelCols.col);
+			setOrgTree(channelCols.col);
+			ts_org.updateValue(listCols.map(e => e.col));
+			submit();
+
+			$('.modal-header .close').click();
+		}
+	}
+</script>
+
+<div class="modal-header border-0">
+	<h5 class="modal-title">임계치 설정</h5>
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		<span aria-hidden="true">&times;</span>
+	</button>
+</div>
+<div class="modal-body">
+	<table class="table table-bordered text-center">
+		<tr>
+			<th>상태</th>
+			<th>임계치</th>
+			<th>사용여부</th>
+		</tr>
+		<tr id="WaitForNextCall">
+			<td class="text-left"><span class="bgcolor"></span>대기</td>
+			<td>
+				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled>
+			</td>
+			<td><input type="checkbox" class="use-yn"></td>
+		</tr>
+		<tr id="CallInbound">
+			<td class="text-left"><span class="bgcolor"></span>IB</td>
+			<td>
+				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled>
+			</td>
+			<td><input type="checkbox" class="use-yn"></td>
+		</tr>
+		<tr id="CallOutbound">
+			<td class="text-left"><span class="bgcolor"></span>OB</td>
+			<td>
+				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled>
+			</td>
+			<td><input type="checkbox" class="use-yn"></td>
+		</tr>
+		<tr id="AfterCallWork">
+			<td class="text-left"><span class="bgcolor"></span>후처리</td>
+			<td>
+				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled>
+			</td>
+			<td><input type="checkbox" class="use-yn"></td>
+		</tr>
+		<tr id="NotReadyForNextCall">
+			<td class="text-left"><span class="bgcolor"></span>이석</td>
+			<td>
+				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled> :
+				<input type="number" class="form-control" placeholder="59" size="2" maxlength="2" min="0" max="59" disabled>
+			</td>
+			<td><input type="checkbox" class="use-yn"></td>
+		</tr>
+	</table>
+</div>
+<div class="modal-footer border-0">
+	<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
+	<button type="button" class="btn btn-primary" onclick="saveThreshold();">저장</button>
+</div>

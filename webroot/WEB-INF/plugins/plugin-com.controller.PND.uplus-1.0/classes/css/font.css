@@ -1,0 +1,26 @@
+/*
+    LG스마트체
+*/
+@font-face {
+  font-family: "LG Smart";
+  src: url("./resources?path=/fonts/LGSmHaL_v1.4_151215.ttf") format("truetype");
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: "LG Smart";
+  src: url("./resources?path=/fonts/LGSmHaR_v1.4_151215.ttf") format("truetype");
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "LG Smart";
+  src: url("./resources?path=/fonts/LGSmHaSB_v1.4_151215.ttf") format("truetype");
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "LG Smart";
+  src: url("./resources?path=/fonts/LGSmHaB_v1.4_151215.ttf") format("truetype");
+  font-weight: 600;
+}

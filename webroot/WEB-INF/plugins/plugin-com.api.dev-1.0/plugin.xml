@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><plugin>
+    <id>com.api.dev</id>
+    <name><![CDATA[ dev ]]></name>
+    <active>yes</active>
+    <version>1.92</version>
+    <env-version>11.0</env-version>
+    <vendor>PND</vendor>
+    <jartime>2019-07-18</jartime>
+    <description><![CDATA[ api-dev ]]></description>
+    <change-notes><![CDATA[
+    [2025-01-22]공통로그인 폼 추가<br/>
+    [2025-01-23]AES 복호화 추가<br/>
+]]></change-notes>
+    <main-package>com.controller</main-package>
+    <function-recorder class="com.controller.ControllerRegister"/>
+    <extra-decision>
+        <ControllerRegisterProvider class="com.controller.ControllerRegister"/>
+    </extra-decision>
+</plugin>

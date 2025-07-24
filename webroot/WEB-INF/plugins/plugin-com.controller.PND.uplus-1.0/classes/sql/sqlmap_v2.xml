@@ -1,0 +1,675 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sqlmap>
+    <!--공통코드 조회-->
+    <query id="selectComm">
+        /* sqlmap_v2.xml.selectComm */
+        SELECT grp_nm
+              ,comm_nm
+              ,comm_value
+              ,param1
+              ,param2
+              ,param3
+              ,param4
+              ,param5
+              ,etc
+              ,sort
+              ,use_yn
+        FROM   finer.comm
+        WHERE  comm_value IS NOT NULL -- for dynamic
+        <isNotEmpty property="grp_nm">
+        AND    grp_nm = :grp_nm
+        </isNotEmpty>
+        <isNotEmpty property="comm_nm">
+        AND    comm_nm = :comm_nm
+        </isNotEmpty>
+        <isNotEmpty property="comm_value">
+        AND    comm_value = :comm_value
+        </isNotEmpty>
+        <isNotEmpty property="comm_values">
+        AND    comm_value IN (:comm_values)
+        </isNotEmpty>
+        <isNotEmpty property="use_yn">
+        AND    use_yn = :use_yn
+        </isNotEmpty>
+        <isNotEmpty property="param5">
+        AND    param5 = :param5
+        </isNotEmpty>
+        ORDER BY sort
+    </query>
+
+    <!--조직 정보 조회-->
+    <query id="selectOrgInfo">
+        /* sqlmap_v2.xml.selectOrgInfo */
+        SELECT org_cd, org_name, fl_org_cd, fl_org_name, hirk_org_cd, depth
+              ,org_cd_list[1] AS chn_cd
+              ,org_cd_list[2] AS cen_cd
+              ,org_cd_list[3] AS grp_cd
+              ,org_cd_list[4] AS tem_cd
+              ,channel_nm AS chn_nm
+              ,org_name_list[2] AS cen_nm
+              ,org_name_list[3] AS grp_nm
+              ,org_name_list[4] AS tem_nm
+        FROM   (
+                    /* 채널 */
+                    SELECT voi.hirk_org_cd AS org_cd
+                          ,voi.channel_nm AS org_name
+                          ,voi.channel_nm AS channel_nm
+                          ,voi.channel_nm AS fl_org_cd
+                          ,voi.channel_nm AS fl_org_name
+                          ,'' AS hirk_org_cd
+                          ,1  AS depth
+                          ,voi.status
+                          ,STRING_TO_ARRAY(voi.hirk_org_cd, '') AS org_cd_list
+                          ,STRING_TO_ARRAY(voi.channel_nm, '') AS org_name_list
+                    FROM   wdm.v_org_info voi
+                    WHERE  voi.depth = 2 -- 센터 채널명 기준으로 조회
+                    GROUP BY voi.hirk_org_cd, voi.channel_nm, voi.status
+                    UNION ALL
+                    /* 채널 하위 */
+                    SELECT voi.org_cd
+                          ,voi.org_name
+                          ,voi.channel_nm
+                          ,ARRAY_TO_STRING(voi.org_cd_list, '_') AS fl_org_cd
+                          ,voi.channel_nm || ' > ' || ARRAY_TO_STRING(voi.org_name_list[2 : 4], ' > ') AS fl_org_name
+                          ,voi.hirk_org_cd
+                          ,voi.depth
+                          ,voi.status
+                          ,voi.org_cd_list
+                          ,voi.org_name_list
+                    FROM   wdm.v_org_info voi
+               ) t
+        WHERE  t.channel_nm IS NOT NULL
+        AND    t.status = '1'
+        <isNotEmpty property="orgCd">
+        AND    t.org_cd = :orgCd
+        </isNotEmpty>
+        <isNotEmpty property="orgCds">
+        AND    t.org_cd IN (:orgCds)
+        </isNotEmpty>
+        <isNotEmpty property="channels">
+        AND    t.channel_nm IN (:channels)
+        </isNotEmpty>
+        <isNotEmpty property="depth">
+        AND    t.depth = :depth
+        </isNotEmpty>
+        ORDER BY t.channel_nm, t.fl_org_name
+    </query>
+
+    <!--조직 정보 조회 - 매장-->
+    <query id="selectOrgInfoPos">
+        /* sqlmap_v2.xml.selectOrgInfoPos */
+        SELECT vos.org_cd
+              ,vos.org_name
+              ,vos.channel_nm
+              ,vos.org_cd_list[1] AS damdang_cd
+              ,vos.org_name_list[1] AS damdang_nm
+              ,ARRAY_TO_STRING(vos.org_cd_list, '_') AS fl_org_cd
+              ,vos.fl_org_name
+              ,vos.hirk_org_cd
+              ,vos.depth
+        FROM   wdm.v_org_info_store vos
+        WHERE  vos.channel_nm IS NOT NULL -- for dynamic
+        <isNotEmpty property="departments">
+        AND    vos.org_name = (SELECT r.orgs[3] FROM (SELECT STRING_TO_ARRAY(:departments, ',') AS orgs) r)
+        </isNotEmpty>
+        <isNotEmpty property="orgCd">
+        AND    vos.org_cd = :orgCd
+        </isNotEmpty>
+        <isNotEmpty property="orgCds">
+        AND    vos.org_cd IN (:orgCds)
+        </isNotEmpty>
+        <isNotEmpty property="damdangs">
+        AND    vos.org_cd_list[1] IN (:damdangs)
+        </isNotEmpty>
+        <isNotEmpty property="depth">
+        AND    vos.depth = :depth
+        </isNotEmpty>
+    </query>
+
+    <!--멀티 필터링 항목 조회-->
+    <query id="selectMultiFilter">
+        /* sqlmap_v2.xml.selectMultiFilter */
+        select rmc.seq
+              ,rmc.user_id
+              ,rmc.page
+              ,rmc.type
+              ,rmc.col_nm
+              ,rmc.col
+              ,rmc.col2
+              ,rmc.col3
+              ,rmc.col4
+              ,rmc.col5
+              ,rmc.default_yn
+              ,c1.comm_nm AS page_nm
+              ,c2.comm_nm AS type_nm
+              ,c2.param5  AS popup_yn
+        from   finer.realtime_multi_col rmc
+               LEFT OUTER JOIN finer.comm c1
+                            ON rmc.page  = c1.comm_value
+                           AND c1.grp_nm = 'realtime_col_page'
+                           AND c1.use_yn = 'Y'
+               LEFT OUTER JOIN finer.comm c2
+                            ON rmc.type  = c2.comm_value
+                           AND c2.grp_nm = 'realtime_col_type'
+                           AND c2.use_yn = 'Y'
+        WHERE  rmc.user_id = :userId
+        <isNotEmpty property="page">
+        AND    rmc.page = :page
+        </isNotEmpty>
+        <isNotEmpty property="type">
+        AND    rmc.type = :type
+        </isNotEmpty>
+        <isNotEmpty property="types">
+        AND    rmc.type IN (:types)
+        </isNotEmpty>
+        <isNotEmpty property="colNm">
+        AND    rmc.col_nm = :colNm
+        </isNotEmpty>
+        ORDER BY rmc.page, rmc.default_yn DESC, rmc.seq, rmc.type
+    </query>
+
+    <!--멀티 필터링 값 조회-->
+    <query id="selectMultiFilterData">
+        /* sqlmap_v2.xml.selectMultiFilterData */
+        SELECT rmcd.user_id
+              ,rmcd.col_seq
+              ,rmcd.page
+              ,rmcd.type
+              ,rmcd.value
+              ,rmcd.remark
+              ,rmcd.sort
+        FROM   finer.realtime_multi_col_data rmcd
+        WHERE  rmcd.user_id = :userId
+        <isNotEmpty property="page">
+        AND    rmcd.page = :page
+        </isNotEmpty>
+        <isNotEmpty property="type">
+        AND    rmcd.type = :type
+        </isNotEmpty>
+        <isNotEmpty property="types">
+        AND    rmcd.type IN (:types)
+        </isNotEmpty>
+        ORDER BY rmcd.col_seq, rmcd.sort
+    </query>
+
+    <!--멀티 필터링 값 삭제-->
+    <query id="deleteMultiFilterData">
+        /* sqlmap_v2.xml.deleteMultiFilterData */
+        DELETE
+        FROM  finer.realtime_multi_col_data rmcd
+        WHERE rmcd.user_id = :userId
+        AND   rmcd.page = :page
+        <isNotEmpty property="seqs">
+        AND   rmcd.col_seq IN (:seqs)
+        </isNotEmpty>
+        <isNotEmpty property="type">
+        AND   rmcd.type = :type
+        </isNotEmpty>
+        <isNotEmpty property="colNm">
+        AND   EXISTS (SELECT 1
+                      FROM   finer.realtime_multi_col
+                      WHERE  seq    = rmcd.col_seq
+                      AND    col_nm = :colNm)
+        </isNotEmpty>
+    </query>
+
+    <!--멀티 필터링 항목 삭제-->
+    <query id="deleteMultiFilter">
+        /* sqlmap_v2.xml.deleteMultiFilter */
+        DELETE
+        FROM  finer.realtime_multi_col
+        WHERE user_id = :userId
+        AND   page    = :page
+        <isNotEmpty property="seqs">
+        AND   seq IN (:seqs)
+        </isNotEmpty>
+        <isNotEmpty property="type">
+        AND   type    = :type
+        </isNotEmpty>
+        <isNotEmpty property="colNm">
+        AND   col_nm  = :colNm
+        </isNotEmpty>
+    </query>
+
+    <!--멀티 필터링 기본값 설정-->
+    <query id="updateDefaultMultiFilter">
+        /* sqlmap_v2.xml.updateDefaultMultiFilter */
+        UPDATE finer.realtime_multi_col
+        SET    default_yn = :defaultYn
+              ,upd_dt     = TO_CHAR(NOW(), 'yyyymmddhh24miss')
+        WHERE  user_id = :userId
+        AND    page    = :page
+        <isNotEmpty property="colNm">
+        AND    col_nm  = :colNm
+        </isNotEmpty>
+    </query>
+
+    <!--멀티 필터링 이름 변경-->
+    <query id="updateMultiFilterNm">
+        /* sqlmap_v2.xml.updateMultiFilterNm */
+        UPDATE finer.realtime_multi_col
+        SET    col_nm = :updateValue
+              ,upd_dt = TO_CHAR(NOW(), 'yyyymmddhh24miss')
+        WHERE  user_id = :userId
+        AND    page    = :page
+        <isNotEmpty property="seqs">
+        AND    seq IN (:seqs)
+        </isNotEmpty>
+        <isNotEmpty property="colNm">
+        AND    col_nm  = :colNm
+        </isNotEmpty>
+    </query>
+
+    <!--멀티 필터링 sequence 조회-->
+    <query id="selectMultiFilterSeq">
+        /* sqlmap_v2.xml.selectMultiFilterSeq */
+        SELECT NEXTVAL('finer.realtime_multi_col_seq')
+    </query>
+
+    <!--멀티 필터링 항목 저장-->
+    <query id="insertMultiFilter">
+        /* sqlmap_v2.xml.insertMultiFilter */
+        INSERT INTO finer.realtime_multi_col
+        (
+            seq, user_id, page, type, col_nm, col, col2, col3, col4, col5, default_yn
+        )
+        VALUES
+        (
+            :seq, :userId, :page, :type, :colNm, :col, :col2, :col3, :col4, :col5, :defaultYn
+        )
+    </query>
+
+    <!--멀티 필터링 값 저장-->
+    <query id="insertMultiFilterData">
+        /* sqlmap_v2.xml.insertMultiFilterData */
+        INSERT INTO finer.realtime_multi_col_data
+        (
+            user_id, col_seq, page, type, value, remark, sort
+        )
+        VALUES
+        (
+            :userId, :colSeq, :page, :type, :value, :remark, :sort
+        )
+    </query>
+
+    <!--엑셀 요청 사유 입력-->
+    <query id="insertExportReason">
+        /* sqlmap_v2.xml.insertExportReason */
+        INSERT INTO finer.export_reason
+        (
+            user_id, page, reason
+        )
+        VALUES
+        (
+            :userId, :page, :reason
+        )
+    </query>
+
+    <!--큐 조회-->
+    <query id="selectQueue">
+        /* sqlmap_v2.xml.selectQueue */
+        WITH q_data AS (
+            SELECT gq.id
+                  ,gq.name
+                  ,gq.description
+                  ,gq.etc1
+                  ,gq.etc2
+                  ,c.etc AS channel
+            FROM   wdm.gc_queue gq
+                   INNER JOIN finer.comm c
+                           ON gq.etc1 = c.comm_nm
+                          AND c.grp_nm = '센터'
+                          AND c.use_yn = 'Y'
+            WHERE  COALESCE(gq.etc2, '') != ''
+            AND    gq.deletetime = 0
+            <isNotEmpty property="channels">
+            AND    c.etc IN (:channels)
+            </isNotEmpty>
+        )
+        SELECT t.id, t.name, t.group, t.depth, t.channel, t.qname, t.description
+        FROM   (
+                    SELECT etc2 AS id, etc2 AS name, NULL AS group, 1 AS depth, channel, NULL AS qname, NULL AS description
+                    FROM   q_data
+                    GROUP BY etc2, channel
+
+                    UNION ALL
+
+                    SELECT id, CONCAT('[', name , ']' , description) AS name, etc2 AS group, 2 AS depth, channel, name AS qname, description
+                    FROM   q_data
+               ) t
+        WHERE  t.id IS NOT NULL -- for dynamic
+        <isNotEmpty property="ids">
+        AND    t.id IN (:ids)
+        </isNotEmpty>
+        ORDER BY t.depth, t.name
+    </query>
+
+    <!--스킬 조회-->
+    <query id="selectSkill">
+        /* sqlmap_v2.xml.selectSkill */
+        WITH skill_data AS (
+            SELECT gs.id
+                  ,gs.name
+                  ,gs.etc1
+                  ,gs.etc2
+                  ,c.etc AS channel
+            FROM   wdm.gc_skill gs
+                   INNER JOIN finer.comm c
+                           ON c.comm_value = SUBSTRING(gs.name, 1, POSITION('_' IN gs.name) - 1)
+                          AND c.grp_nm = '센터'
+                          AND c.use_yn = 'Y'
+            WHERE  COALESCE(etc2, '') != ''
+            <isNotEmpty property="channels">
+            AND    c.etc IN (:channels)
+            </isNotEmpty>
+        )
+        SELECT t.id, t.name, t.group, t.depth, t.channel
+        FROM   (
+                    SELECT etc2 AS id, etc2 AS name, NULL AS group, 1 AS depth, channel
+                    FROM   skill_data
+                    GROUP BY etc2, channel
+
+                    UNION ALL
+
+                    SELECT id, name, etc2 AS group, 2 AS depth, channel
+                    FROM   skill_data
+               ) t
+        ORDER BY t.depth, t.name
+    </query>
+
+    <!--스킬 그룹별 현황 조회 - 스킬그룹 기준으로 그룹핑 (모바일 사용)-->
+    <query id="selectSkillGroupStatus">
+        /* sqlmap_v2.xml.selectSkillGroupStatus */
+        WITH c AS (
+            SELECT c.agid
+                  ,CASE
+                       WHEN c.status > 5
+                       THEN (CASE WHEN LENGTH(SKILL) = 36 THEN 15 ELSE c.status END) /* SKILLID 값이 있는 경우, IB */
+                       WHEN c.login_status = 4 AND c.aux_status = 8 /* 이석상세사유가 후처리인 경우, 후처리 */
+                       THEN 5
+                       ELSE c.login_status
+                   END AS status
+            FROM   wdm.cagent c
+        )
+        SELECT gs.etc2 AS name
+              ,COUNT(DISTINCT CASE WHEN c.status NOT IN (0, 1) THEN c.agid END) AS login
+              ,COUNT(DISTINCT CASE WHEN c.status = 3 THEN c.agid END) AS wait
+              ,COUNT(DISTINCT CASE WHEN c.status = 4 THEN c.agid END) AS aux
+              ,COUNT(DISTINCT CASE WHEN c.status = 5 THEN c.agid END) AS acw
+              ,COUNT(DISTINCT CASE WHEN c.status IN (6, 11, 13, 14) THEN c.agid END) AS ob
+              ,COUNT(DISTINCT CASE WHEN c.status IN (7, 10, 12, 15) THEN c.agid END) AS ib
+              ,COUNT(DISTINCT CASE WHEN c.status IN (2, 8, 9) THEN c.agid END) AS etc
+        FROM   wdm.gc_skill gs
+               LEFT JOIN wdm.agent_skill_mapping asm
+                      ON gs.id = asm.skill_id
+               LEFT JOIN c
+                      ON asm.user_id = c.agid
+        WHERE  COALESCE(gs.etc2, '') != ''
+        <isNotEmpty property="listGroupCols">
+        AND    gs.etc2 IN (:listGroupCols)
+        </isNotEmpty>
+        GROUP BY gs.etc2
+        HAVING COUNT(c.agid) > 0
+        ORDER BY gs.etc2
+    </query>
+
+    <!--스킬 개별 현황 조회 - 스킬 기준으로 그룹핑 (모바일 사용)-->
+    <query id="selectSkillStatus">
+        /* sqlmap_v2.xml.selectSkillStatus */
+        WITH c AS (
+            SELECT c.agid
+                  ,CASE
+                       WHEN c.status > 5
+                       THEN (CASE WHEN LENGTH(SKILL) = 36 THEN 15 ELSE c.status END) /* SKILLID 값이 있는 경우 IB */
+                       WHEN c.login_status = 4 AND c.aux_status = 8 /* 이석상세사유가 후처리인 경우, 후처리 */
+                       THEN 5
+                       ELSE c.login_status
+                   END AS status
+            FROM   wdm.cagent c
+        )
+        SELECT gs.id
+              ,gs.etc2 AS group
+              ,gs.name
+              ,COUNT(DISTINCT CASE WHEN c.status NOT IN (0, 1) THEN c.agid END) AS login
+              ,COUNT(DISTINCT CASE WHEN c.status = 3 THEN c.agid END) AS wait
+              ,COUNT(DISTINCT CASE WHEN c.status = 4 THEN c.agid END) AS aux
+              ,COUNT(DISTINCT CASE WHEN c.status = 5 THEN c.agid END) AS acw
+              ,COUNT(DISTINCT CASE WHEN c.status IN (6, 11, 13, 14) THEN c.agid END) AS ob
+              ,COUNT(DISTINCT CASE WHEN c.status IN (7, 10, 12, 15, 16) THEN c.agid END) AS ib
+              ,COUNT(DISTINCT CASE WHEN c.status IN (2, 8, 9) THEN c.agid END) AS etc
+              ,COUNT(DISTINCT CASE WHEN c.status = 16 THEN c.agid END) AS obtoib
+        FROM   wdm.gc_skill gs
+               LEFT JOIN wdm.agent_skill_mapping asm
+                      ON gs.id = asm.skill_id
+               LEFT JOIN c
+                      ON asm.user_id = c.agid
+        WHERE  COALESCE(gs.etc2, '') != ''
+        <isNotEmpty property="listCols">
+        AND    gs.id IN (:listCols)
+        </isNotEmpty>
+        GROUP BY gs.id
+        HAVING COUNT(c.agid) > 0
+        ORDER BY gs.etc2, gs.name
+    </query>
+
+    <!--스킬 그룹별 현황 조회 - 스킬그룹+조직(그룹) 기준으로 그룹핑 (홈/기업 사용)-->
+    <query id="selectSkillGroupStatusByOrg">
+        /* sqlmap_v2.xml.selectSkillGroupStatusByOrg */
+        WITH c AS (
+            SELECT c.agid
+                  ,voi.org_cd_list[3] AS grp_cd
+                  ,voi.org_name_list[3] AS grp_name
+                  ,CASE
+                       WHEN c.status > 5
+                       THEN (CASE WHEN LENGTH(SKILL) = 36 THEN 15 ELSE c.status END) /* SKILLID 값이 있는 경우 IB */
+                       WHEN c.login_status = 4 AND c.aux_status = 8 /* 이석상세사유가 후처리인 경우, 후처리 */
+                       THEN 5
+                       ELSE c.login_status
+                   END AS status
+            FROM   wdm.cagent c
+            INNER JOIN wdm.user_info ui
+                    ON c.agid = ui.gcloud_uuid
+            INNER JOIN wdm.v_org_info voi
+                    ON ui.org_cd = voi.org_cd
+                   AND voi.status = '1'
+        )
+        SELECT gs.etc2 AS name
+              ,c.grp_cd AS orgcd
+              ,c.grp_name AS orgname
+              ,COUNT(DISTINCT CASE WHEN c.status NOT IN (0, 1) THEN c.agid END) AS login
+              ,COUNT(DISTINCT CASE WHEN c.status = 3 THEN c.agid END) AS wait
+              ,COUNT(DISTINCT CASE WHEN c.status = 4 THEN c.agid END) AS aux
+              ,COUNT(DISTINCT CASE WHEN c.status = 5 THEN c.agid END) AS acw
+              ,COUNT(DISTINCT CASE WHEN c.status IN (6, 11, 13, 14) THEN c.agid END) AS ob
+              ,COUNT(DISTINCT CASE WHEN c.status IN (7, 10, 12, 15) THEN c.agid END) AS ib
+              ,COUNT(DISTINCT CASE WHEN c.status IN (2, 8, 9) THEN c.agid END) AS etc
+        FROM   wdm.gc_skill gs
+               LEFT JOIN wdm.agent_skill_mapping asm
+                      ON gs.id = asm.skill_id
+               LEFT JOIN c
+                      ON asm.user_id = c.agid
+        WHERE  COALESCE(gs.etc2, '') != ''
+        AND    c.grp_cd IS NOT NULL
+        <isNotEmpty property="listGroupCols">
+        AND    gs.etc2 IN (:listGroupCols)
+        </isNotEmpty>
+        GROUP BY gs.etc2, c.grp_cd, c.grp_name
+        ORDER BY gs.etc2, c.grp_name
+    </query>
+
+    <!--스킬 개별 현황 조회 - 스킬+조직(그룹) 기준으로 그룹핑 (홈/기업 사용)-->
+    <query id="selectSkillStatusByOrg">
+        /* sqlmap_v2.xml.selectSkillStatusByOrg */
+        WITH c AS (
+            SELECT c.agid
+                  ,voi.org_cd_list[3] AS grp_cd
+                  ,voi.org_name_list[3] AS grp_name
+                  ,CASE
+                       WHEN c.status > 5
+                       THEN (CASE WHEN LENGTH(SKILL) = 36 THEN 15 ELSE c.status END) /* SKILLID 값이 있는 경우 IB */
+                       WHEN c.login_status = 4 AND c.aux_status = 8 /* 이석상세사유가 후처리인 경우, 후처리 */
+                       THEN 5
+                       ELSE c.login_status
+                   END AS status
+                  ,c.aux_status
+            FROM   wdm.cagent c
+                   INNER JOIN wdm.user_info ui
+                           ON c.agid = ui.gcloud_uuid
+                   INNER JOIN wdm.v_org_info voi
+                           ON ui.org_cd = voi.org_cd
+                          AND voi.status = '1'
+        )
+        SELECT gs.id
+              ,gs.etc2 AS group
+              ,gs.name
+              ,c.grp_cd AS orgcd
+              ,c.grp_name AS orgname
+              ,COUNT(DISTINCT CASE WHEN c.status NOT IN (0, 1) THEN c.agid END) AS login
+              ,COUNT(DISTINCT CASE WHEN c.status = 3 THEN c.agid END) AS wait
+              ,COUNT(DISTINCT CASE WHEN c.status = 4 THEN c.agid END) AS aux
+              ,COUNT(DISTINCT CASE WHEN c.status = 5 THEN c.agid END) AS acw
+              ,COUNT(DISTINCT CASE WHEN c.status IN (6, 11, 13, 14) THEN c.agid END) AS ob
+              ,COUNT(DISTINCT CASE WHEN c.status IN (7, 10, 12, 15, 16) THEN c.agid END) AS ib
+              ,COUNT(DISTINCT CASE WHEN c.status IN (2, 8, 9) THEN c.agid END) AS etc
+              ,COUNT(DISTINCT CASE WHEN c.status = 16 THEN c.agid END) AS obtoib
+        FROM   wdm.gc_skill gs
+               LEFT JOIN wdm.agent_skill_mapping asm
+                      ON gs.id = asm.skill_id
+               LEFT JOIN c
+                      ON asm.user_id = c.agid
+        WHERE  COALESCE(gs.etc2, '') != ''
+        AND    c.grp_cd IS NOT NULL
+        <isNotEmpty property="listCols">
+        AND    gs.id IN (:listCols)
+        </isNotEmpty>
+        GROUP BY gs.id, c.grp_cd, c.grp_name
+        ORDER BY gs.etc2, gs.name, c.grp_name
+    </query>
+
+    <!--직책 조회-->
+    <query id="selectPosition">
+        /* sqlmap_v2.xml.selectPosition */
+        SELECT DISTINCT ui.ex_lgt_pstn_dv_nm
+        FROM   wdm.user_info ui
+               INNER JOIN wdm.v_org_info voi
+                       ON ui.org_cd = voi.org_cd
+                      AND (voi.depth = 1 OR channel_nm IS NOT NULL)
+                      AND voi.status = '1'
+                      AND ui.ex_hofc_stts_cd = 'C'
+        WHERE  COALESCE(ui.gcloud_uuid, '') != ''
+        AND    COALESCE(ui.ex_lgt_pstn_dv_nm, '') != ''
+        <isNotEmpty property="channels">
+        AND    voi.channel_nm IN (:channels)
+        </isNotEmpty>
+    </query>
+
+    <!--상담원 조회-->
+    <query id="selectAgent">
+        /* sqlmap_v2.xml.selectAgent */
+        SELECT ui.gcloud_uuid AS agid
+              ,ui.org_cd
+              ,ui.login_id
+              ,ui.emp_name AS name
+              ,ui.ex_lgt_pstn_dv_nm AS position
+              ,voi.org_name
+              -- ,ARRAY_TO_STRING(voi.org_cd_list, '_') AS fl_org_cd
+              ,voi.channel_nm || '_' || ARRAY_TO_STRING(voi.org_cd_list[2 : 4], '_') AS fl_org_cd
+              ,CONCAT(voi.channel_nm, SUBSTRING(voi.fl_org_name, POSITION('_' IN voi.fl_org_name))) AS fl_org_name
+              ,voi.channel_nm
+              ,org_cd_list[1] AS chn_cd
+              ,org_cd_list[2] AS cen_cd
+              ,org_cd_list[3] AS grp_cd
+              ,org_cd_list[4] AS tem_cd
+        FROM   wdm.user_info ui
+               INNER JOIN wdm.v_org_info voi
+                       ON ui.org_cd = voi.org_cd
+                      AND (voi.depth = 1 OR channel_nm IS NOT NULL)
+                      AND voi.status = '1'
+                      AND ui.ex_hofc_stts_cd = 'C'
+        WHERE  COALESCE(ui.gcloud_uuid, '') != ''
+        <isNotEmpty property="channels">
+        AND    voi.channel_nm IN (:channels)
+        </isNotEmpty>
+        <isNotEmpty property="centers">
+        AND    voi.org_cd_list[2] IN (:centers)
+        </isNotEmpty>
+        <isNotEmpty property="groups">
+        AND    voi.org_cd_list[3] IN (:groups)
+        </isNotEmpty>
+        <isNotEmpty property="teams">
+        AND    voi.org_cd_list[4] IN (:teams)
+        </isNotEmpty>
+        <isNotEmpty property="orgCds">
+        AND ui.org_cd IN (:orgCds)
+        </isNotEmpty>
+    </query>
+
+    <!--상담원 조회 - 매장-->
+    <query id="selectAgentPos">
+        /* sqlmap_v2.xml.selectAgentPos */
+        SELECT ui.agent_id AS agid
+              ,ui.login_id
+              ,ui.emp_name AS name
+              ,vos.org_cd
+              ,vos.org_name
+              ,CASE
+                   WHEN c.status > 5 THEN 3
+                   ELSE CASE
+                            WHEN (c.login_status IS NULL OR c.login_status IN (0, 1)) THEN 1
+                            ELSE 2
+                        END
+               END AS status /* 1: 로그아웃, 2: 로그인, 3: 통화중 */
+              ,COALESCE(c.stafftime, 0) AS stafftime
+        FROM   wdm.v_user_info_store ui
+               INNER JOIN wdm.v_org_info_store vos
+                       ON ui.org_cd = vos.org_cd
+               LEFT JOIN wdm.cagent c
+                      ON ui.agent_id = c.agid
+        WHERE  ui.emp_id != 'gcadmin'
+        <isNotEmpty property="orgCds">
+        AND    ui.org_cd IN (:orgCds)
+        </isNotEmpty>
+        <isEqual property="searchType" compareValue="1">
+        AND    (c.login_status IS NULL OR c.login_status IN (0, 1)) -- 로그아웃
+        </isEqual>
+        <isEqual property="searchType" compareValue="2">
+        AND    c.login_status NOT IN (0, 1) -- 로그인
+        </isEqual>
+        ORDER BY ui.org_cd, c.login_status DESC, ui.emp_name
+    </query>
+
+    <!--상담원 로그인 수 조회 - 매장-->
+    <query id="selectAgentPosLoginCnt">
+        /* sqlmap_v2.xml.selectAgentPosLoginCnt */
+        WITH agent AS (
+            SELECT ui.agent_id AS agid
+                  ,ui.org_cd
+                  ,CASE
+                       WHEN c.status > 5 THEN 3
+                       ELSE CASE
+                                WHEN (c.login_status IS NULL OR c.login_status IN (0, 1)) THEN 1
+                                ELSE 2
+                            END
+                   END AS status /* 1: 로그아웃, 2: 로그인, 3: 통화중 */
+            FROM   wdm.v_user_info_store ui
+                   LEFT JOIN wdm.cagent c
+                          ON ui.agent_id = c.agid
+                   INNER JOIN (SELECT user_id FROM wdm.agent_pos_mapping_public WHERE progress_ymd = TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDD')) d
+                          ON c.agid = d.user_id
+        )
+        SELECT vos.org_cd
+              ,vos.org_name
+              ,COUNT(CASE WHEN ag.status = 1 THEN ag.agid END) AS logout_cnt
+              ,COUNT(CASE WHEN ag.status = 2 THEN ag.agid END) AS login_cnt
+              ,COUNT(CASE WHEN ag.status = 3 THEN ag.agid END) AS call_cnt
+        FROM   wdm.v_org_info_store vos
+               INNER JOIN agent ag
+                      ON vos.org_cd = ag.org_cd
+        WHERE  vos.org_cd IS NOT NULL -- for dynamic
+        <isNotEmpty property="orgCds">
+        AND    vos.org_cd IN (:orgCds)
+        </isNotEmpty>
+        GROUP BY vos.org_cd, vos.org_name
+        ORDER BY vos.org_cd
+    </query>
+</sqlmap>

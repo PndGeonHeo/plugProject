@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/muuri.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<style>
+		html, body {height:100%;}
+		ul {display:inline-block;}
+		.u-container * {font-size:13px;font-weight:500;color:#221815;}
+		.box-container {text-align:center;margin:0 0 1.5rem;}
+		.grid {position:relative;margin:0 auto;}
+		.grid-item {position:absolute;margin:1.5rem 0 .5rem 1.75em;}
+
+		.box-wrapper {width:350px;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
+		.box-wrapper:active {background-color:#b3bcc7;}
+		.box-wrapper:active .title {color:#fff;}
+		.box {height:fit-content;}
+		.box .title {padding-top:1rem;padding-bottom:.5rem;font-size:14px;}
+		.item-wrapper {grid-template-columns:repeat(4, calc(342px/4));padding:4px;}
+		.item-wrapper > div.item {padding:.25rem .35rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
+		.item-wrapper > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+		.item-wrapper > div p.name {font-weight:600;}
+		.item-wrapper > div p.loginId, .item-wrapper > div p.agtime {color:#999;}
+		.item-wrapper p.status {font-weight:600;text-align:center !important;}
+
+		.item-wrapper > div.item.logout {background-color:#eee;box-shadow:none !important;}
+		.item-wrapper > div.item.logout * {color:#999;}
+
+		.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;width:100%;}
+		.filter-wrapper * {vertical-align:middle;}
+		.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+		.filter-wrapper select {width:10em;display:inline-block;padding-top:2px;}
+		.filter-wrapper label {vertical-align:middle;}
+		.filter-wrapper .checkbox-inline {line-height:21px;margin-right:0;}
+		.filter-wrapper .checkbox-inline:not(:first-child) {margin-left:.75rem;}
+		.filter-wrapper .checkbox-inline label {display:inline-flex;}
+		.filter-wrapper .checkbox-inline input[type=checkbox] {margin-right:5px;}
+
+		button.btn, .custom-select {height:25px !important;}
+		.btn {line-height:12px;color:#fff;}
+		.btn-clear {background-color:#d9d9d9;}
+		.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+		.status[data-status="3"] {color:#808000 !important;}
+		.status[data-status="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"] {color:#0d9ca3 !important;}
+		.status[data-status="4"]:not([data-auxstatus])::before {content:'';background:url(/webroot/ssoagent/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+		.status[data-status="5"] {color:#f1c40f !important;}
+		.status[data-status="5"]::before {content:'';background:url(/webroot/images/icon_acw.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="14"] {color:#eb0000 !important;}
+		.status[data-status="14"]::before {content:'';background:url(/webroot/images/icon_ob.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status[data-status="15"]::before {content:'';background:url(/webroot/images/icon_ib.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+		.status[data-status="99"]::before {content:'';background:url(/webroot/images/icon_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+		.status[data-status="4"][data-auxstatus="1"]::before {content:'';background:url(/webroot/images/icon_aux_massage.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="2"]::before {content:'';background:url(/webroot/images/icon_aux_rest.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="3"]::before {content:'';background:url(/webroot/images/icon_aux_mentoring.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="4"]::before {content:'';background:url(/webroot/images/icon_aux_edu.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="5"]::before {content:'';background:url(/webroot/images/icon_aux_counseling.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="6"]::before {content:'';background:url(/webroot/images/icon_aux_dataprcsng.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+		.status[data-status="4"][data-auxstatus="7"]::before {content:'';background:url(/webroot/images/icon_aux_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+		.timeout p {color:#221815 !important;}
+		.timeout:has([data-status="3"]) {background-color:#e3e3c7 !important;}
+		.timeout:has([data-status="4"]) {background-color:#b6dfe7 !important;}
+		.timeout:has([data-status="5"]) {background-color:#feffd6 !important;}
+		.timeout:has([data-status="14"]) {background-color:#f3cebc !important;}
+		.timeout:has([data-status="15"]) {background-color:#bfd8ff !important;}
+
+		.no-data {position: absolute;top:400px;left:50%;transform:translate(-50%,-50%);color:#bbb;}
+
+		#modal-threshold .modal-dialog {width:400px;}
+
+		.tree-container {padding:.1rem 0 .375rem .75rem;background:#fff;}
+		#channel-tree {width:150px;}
+		#org-tree {width:300px;}
+		.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
+		.treeselect-list__slot {background-color:#eef4fb;}
+		.treeselect-input__tags {width:86%;}
+
+		/* tooltip */
+		[data-tooltip] {position:relative;}
+		[data-tooltip]:before {visibility:hidden;opacity:0;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;transition:all .2s ease;font-size:12px;font-weight:300;}
+		//[data-tooltip]:after {visibility:hidden;opacity:0;position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;transition:all .2s ease;font-size:12px;font-weight:300;}
+		[data-tooltip]:before {content:attr(data-tooltip);white-space:pre-wrap;position:absolute;top:-50%/*top:0*/;padding:5px 10px;border-radius:5px;color:#fff;background:#025272;box-shadow:0 3px 8px rgba(165, 165, 165, 0.5);line-height:1.25em;}
+		//[data-tooltip]:after {content:'';border-left:5px solid transparent;/*top:2px;*/border-right:5px solid transparent;border-top:5px solid #025272;}
+		[data-tooltip]:not([data-tooltip=""]):hover:before {visibility:visible;opacity:1;top:-50%/*0*/;}
+		//[data-tooltip]:not([data-tooltip=""]):hover:after {visibility:visible;opacity:1;top:30%/*22px*/;}
+	</style>
+	<script>
+		var page = 'AGENT_POS';
+		var searchType = 0; // 0: 전체, 1: 로그아웃, 2: 로그인
+		var channelCols, listCols = [], popupCols = [];
+
+		var channelInfo = ${channelInfo};
+		var orgInfo = ${orgInfo};
+		var orgTree = orgToTree(orgInfo);
+
+		var ts_chn, ts_org;
+
+		$(document).ready(function() {
+			var channels = [...new Set(orgInfo.map(e => e.channel_nm))];
+
+			// 채널 treeselect
+			ts_chn = new Treeselect({
+				parentHtmlContainer: document.querySelector('#channel-tree'),
+				value: '',
+				options: arrayToTree({data: channelInfo, name: 'org_name', value: 'org_name', parent: 'hirk_org_cd'}),
+				emptyText: '결과없음',
+				placeholder: '- 채널 -',
+				isSingleSelect: true,
+				searchable: false,
+				showTags: false
+			});
+
+			ts_chn.srcElement.addEventListener('input', e => {
+				setOrgTree(ts_chn.value);
+			});
+			ts_chn.srcElement.addEventListener('name-change', e => {
+				setOrgTree(ts_chn.value);
+			});
+
+			// 센터/그룹/팀 treeselect
+			ts_org = new Treeselect({
+				parentHtmlContainer: document.querySelector('#org-tree'),
+				value: [],
+				options: [],
+				showCount: true,
+				listSlotHtmlComponent: getAllSelectSlot('ts_org'),
+				emptyText: '결과없음',
+				placeholder: '- 센터/그룹/팀 -'
+			});
+
+			ts_org.srcElement.addEventListener('input', e => {
+				treeselectAll(ts_org);
+			});
+			ts_org.srcElement.addEventListener('open', e => {
+				treeselectAll(ts_org);
+			});
+			ts_org.srcElement.addEventListener('search', e => {
+				ts_org.searchText = e.detail;
+				setTimeout(function() {
+					treeselectAll(ts_org);
+				}, 400);
+			});
+
+			// 노출 항목 제어
+			$('.list-item').change(function() {
+				if ($('.list-item:checked').length < 1) {
+					alert("1개 이상 선택하세요");
+					$(this).prop('checked', true);
+					return;
+				}
+
+				var clz = $(this).val();
+				$('.' + clz).toggle($(this).prop('checked'));
+
+				setGridLayout(true);
+			});
+
+			// 로그인/로그아웃 필터 버튼 클릭 이벤트
+			$('.tab').click(function() {
+				var type = toNumber($(this).data('type'));
+
+				if (searchType == type) return;
+
+				searchType = type;
+				$('.tab').removeClass('btn-clear btn-primary');
+				$(this).siblings('.tab').addClass('btn-clear');
+				$(this).addClass('btn-primary');
+
+				submit();
+			});
+
+			// 저장된 필터 기준으로 화면 셋팅
+			setByFilter();
+		});
+
+		/* 조직(센터/그룹/팀) treeselect */
+		function setOrgTree(chn) {
+			var data = orgTree.filter(e => e.value == chn);
+
+			if (ts_org) ts_org.destroy();
+
+			if (data && data.length > 0) {
+				ts_org.options = data[0].children;
+				ts_org.mount();
+			}
+		}
+
+		/* 저장된 필터 기준으로 화면 셋팅 */
+		function setByFilter() {
+			var filterInfo = ${filterInfo};
+
+			// 노출항목
+			var ft_listItem = filterInfo.filter(e => e.type == 'LIST_ITEM').map(e => e.col);
+			if (ft_listItem.length < 1) {
+				$('.list-item').prop('checked', true); // 필터 데이터 없는 경우 전체 항목 노출
+
+			} else {
+				$('.list-item').each(function() {
+					if (ft_listItem.indexOf($(this).val()) > -1) {
+						$(this).prop('checked', true);
+					} else {
+						$(this).prop('checked', false);
+					}
+				});
+			}
+
+			// 로그인/로그아웃 여부
+			var typeFilter = filterInfo.filter(e => e.type == 'SEARCH_TYPE');
+			if (typeFilter && typeFilter.length > 0)
+				searchType = toNumber(typeFilter[0].col);
+
+			$('.tab[data-type="' + searchType + '"]').addClass('btn-primary');
+			$('.tab[data-type="' + searchType + '"]').siblings('.tab').addClass('btn-clear');
+
+			// 채널
+			var ft_channel = filterInfo.filter(e => e.type == 'CHANNEL').map(e => e.col);
+			if (ft_channel.length > 0) {
+				ts_chn.updateValue(ft_channel);
+				setOrgTree(ts_chn.value);
+			}
+
+			// 리스트
+			var ft_list = filterInfo.filter(e => e.type == 'LIST').map(e => {
+				return {col: e.col, value: e.value}
+			});
+			if (ft_list.length > 0) {
+				ts_org.updateValue(ft_list.map(e => e.col));
+				submit(ft_list);
+			}
+
+			// 팝업
+			var ft_popup = filterInfo.filter(e => e.type == 'CHART');
+			chart(ft_popup);
+		}
+
+		/* 필터저장 */
+		function saveFilter() {
+			var params = [];
+
+			// 채널
+			var channel = {
+				page: page,
+				type: 'CHANNEL',
+				data: channelCols
+			};
+			params.push(getFilterData(channel));
+
+			// 리스트 (현재 조회 결과 기준으로 저장)
+			var list = {
+				page: page,
+				type: 'LIST',
+				data: listCols
+			};
+			params.push(getFilterData(list));
+
+			// 로그인/로그아웃 여부
+			var type = {
+				page: page,
+				type: 'SEARCH_TYPE',
+				data: [{col: String(searchType)}]
+			};
+			params.push(getFilterData(type));
+
+			// 데이터 노출 항목 (이름/로그인ID/상태/시간)
+			var listItem = {
+				page: page,
+				type: 'LIST_ITEM',
+				data: Array.from($('.list-item:checked').map((i, e) => { return {col: $(e).val()} }))
+			};
+			params.push(getFilterData(listItem));
+
+			// 팝업
+			var data = Array.from(new Set(popupCols.join().split(','))).sort(); // 중복 제거를 위함
+			var popup = {
+				page: page,
+				type: 'CHART',
+				data: data.map(e => { return {col: e} })
+			};
+			params.push(getFilterData(popup));
+
+			updateFilter(params);
+		}
+
+		/* 조회 */
+		function submit(data) {
+			if (!ts_chn.value || ts_chn.value.length < 1) {
+				alert('채널을 선택하세요');
+				return;
+			}
+
+			if (!ts_org.value || ts_org.value.length < 1) {
+				alert('센터/그룹/팀을 선택하세요');
+				return;
+			}
+
+			channelCols = new Array({col: ts_chn.value});
+
+			if (data) {
+				listCols = data;
+
+			} else {
+				var value = ts_org.value;
+				listCols = orgInfo.filter(e => e.depth == 4 && value.indexOf(e.org_cd) > -1).map((e, i) => {
+					return {col: e.org_cd, value: e.org_name}
+				});
+			}
+
+			$.ajax({
+				url         : fineServletURL + '/uplus/agent/pos/ajax',
+				type        : 'POST',
+				contentType : 'application/json',
+				data        : JSON.stringify({
+					searchType : searchType,
+					orgCds     : listCols.map(e => e.col)
+				}),
+				success     : function(res) {
+					setItem(res, listCols);
+				},
+				error       : function(request,status,error) {
+					parent.BI.Msg.toast('상담사 현황 조회 실패', {level: 'error'});
+				}
+			});
+		}
+
+		/* 데이터 조회 후 화면단 처리 */
+		function setItem(res, orgs) {
+			var data = JSON.parse(res.data);
+			var count = JSON.parse(res.loginCnt);
+			count.forEach(e => e.sort = orgs.findIndex(o => o.col == e.org_cd)); // 필터 저장된 정렬 순서
+			count.sort((a, b) => a.sort - b.sort);
+
+			// 팀별 box 영역 append
+			count.forEach(e => {
+				var $box = $('<div>', {class: 'box'});
+				$box.append($('<div>', {class: 'title', text: e.org_name + ' (로그인 ' + e.login_cnt +')'}));
+				$box.append($('<div>', {class: 'item-wrapper d-grid'}));
+
+				$('.box-container > .grid').append($box);
+				$box.wrap($('<div>', {class: 'grid-item'}))
+					.wrap($('<div>', {class: 'item-content'}))
+					.wrap($('<div>', {class: 'box-wrapper', 'data-org-cd': e.org_cd, 'data-org-name': e.org_name}));
+			});
+
+			// 상담원 append
+			data.forEach(e => {
+				var $item = $('<div>', {class: 'item', id: e.agid, 'data-org-cd': e.org_cd, 'data-toggle': 'tooltip'});
+				$item.append($('<p>', {class: 'name', text: e.name}));
+				$item.append($('<p>', {class: 'loginId', text: getLoginId(e.login_id)}));
+				$item.append($('<p>', {class: 'stafftime', text: getHis(e.stafftime)}));
+				$item.attr('title', Array.from($item.find('p').map((i, el) => $(el).text())).join('<br>'));
+				$item.tooltip({html: true});
+
+				if (e.login_status == 1)
+					$item.addClass('logout');
+
+				$('.list-item').each((i, e) => $item.find('.' + $(e).val()).toggle($(e).prop('checked')));
+
+				$('.box-wrapper[data-org-cd="' + e.org_cd + '"]').find('.item-wrapper').append($item);
+			});
+
+			$('.no-data').hide();
+			if (grid && !grid._isDestroyed) grid.destroy(true);
+
+			createGrid();
+			$('.grid').show();
+		}
+
+		/* 상담사현황 차트 팝업 */
+		function chart(data) {
+			var arr = [];
+
+			if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
+				arr = data.filter(e => e.col).map(obj => obj.col);
+
+			} else {	// 사용자 직접 오픈
+				arr = ts_org.value;
+
+				if (arr.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+			}
+
+			if (arr.length < 1) return;
+
+			$('#chart-form').html('');
+
+			$(arr).each(function() {
+				$('#chart-form').append($('<input>', {type: 'hidden', name: 'orgCds', value: this}));
+			});
+
+			var popupName = 'c-' + Array.from(arr).join();
+			var w = $('input[name="orgCds"]').length > 1 ? 700 : 350;
+			var h = Math.ceil($('input[name="orgCds"]').length / 2) * 330;
+
+			window.open('', popupName, 'width=' + w + ',height=' + h);
+			$('#chart-form').attr('target', popupName);
+			$('#chart-form').submit();
+		}
+	</script>
+</head>
+<body>
+<form id="chart-form" action="/webroot/decision/uplus/agent/pos/chart" method="POST"></form>
+
+<div class="u-container">
+	<!--필터 영역-->
+	<div class="filter-wrapper shadow-sm d-table">
+		<div class="d-table-cell">
+			<div class="btn-group">
+				<button type="button" class="btn tab" data-type="0">전체</button>
+				<button type="button" class="btn tab" data-type="2">로그인</button>
+				<button type="button" class="btn tab" data-type="1">로그아웃</button>
+			</div>
+			<div class="tree-container custom-select" id="channel-tree" data-placeholder="- 채널 -"></div>
+			<div class="tree-container custom-select" id="org-tree" data-placeholder="- 센터/그룹/팀 -"></div>
+			<button class="btn btn-info" onclick="submit();">조회</button>
+			<button class="btn btn-clear" onclick="ts_chn.updateValue('');">초기화</button>
+			<button class="btn btn-info" onclick="chart();">상담사현황</button>
+
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="name">이름</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="loginId">로그인ID</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="stafftime">시간</label>
+			</span>
+		</div>
+
+		<div class="d-table-cell text-right">
+			<button class="btn btn-white" onclick="saveFilter();">필터저장</button>
+			<button class="btn btn-white" onclick="initFilter({page: page});">필터초기화</button>
+		</div>
+	</div>
+	<!--//필터 영역-->
+
+	<!--데이터 영역-->
+	<div class="box-container">
+		<div class="no-data">데이터가 존재하지 않습니다</div>
+		<div class="grid" style="display:none;"></div>
+	</div>
+	<!--//데이터 영역-->
+</div>
+
+<script>
+	var col_size = 0; // 기존 컬럼 수
+	var grid;
+
+	/* grid 적용 */
+	function createGrid() {
+		grid = new Muuri('.grid', {
+			dragEnabled: true,
+			items: '.grid-item',
+			layoutDuration: 0,
+			layoutOnResize: 0
+		});
+
+		// container 영역 resize 이벤트 발생 시, setGridLayout() 실행
+		var observer = new ResizeObserver((entries) => {
+			for (var entry in entries) {
+				setGridLayout();
+			}
+		});
+		observer.observe(document.querySelector('.u-container'));
+
+		// box 이동 시, 필터 저장용 데이터 갱신 및 setGridLayout() 실행
+		grid.on('dragReleaseEnd', function(item) {
+			grid.synchronize();
+			listCols = Array.from($('.box-wrapper').map((i, e) => {
+				return {col: $(e).data('org-cd'), value: $(e).data('org-name')}
+			}));
+			setGridLayout(true);
+		});
+	}
+</script>
+</body>
+</html>

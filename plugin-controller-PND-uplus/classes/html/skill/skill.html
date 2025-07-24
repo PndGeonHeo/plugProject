@@ -1,0 +1,348 @@
+<script>
+    var Grid = tui.Grid;
+    Grid.applyTheme('clean');
+    Grid.setLanguage('ko');
+
+    var SKILL = {
+        page: 'SKILL',
+        data: ${skillInfo},
+        listCols: [],
+        groupFlag: true,
+        grid: null,
+        gridOptions: {
+            scrollX: false,
+            scrollY: false,
+            minBodyHeight: 40,
+            minRowHeight: 40,
+            rowHeight: 40,
+            usageStatistics: false,
+            header: {
+                height: 40,
+                align: 'right',
+                columns: [
+                    {name: 'name', align: 'left'}
+                ]
+            },
+            columnOptions: {
+                resizable: true
+            },
+            columns: [
+                {header: '스킬그룹',  name: 'name',  align: 'left', sortable: true, width: 200},
+                {header: '로그인',   name: 'login', align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: '대기',     name: 'wait',  align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: 'IB',      name: 'ib',    align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: 'OB',      name: 'ob',    align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: '후처리',   name: 'acw',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: '이석',     name: 'aux',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+                {header: '기타',     name: 'etc',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }}
+            ],
+            pageOptions: {
+                useClient: true,
+                perPage: 14
+            }
+        },
+
+        setGrid() {
+            this.gridOptions.el = $('#skill-grid-wrapper')[0];
+            this.grid = new Grid(this.gridOptions);
+            this.grid.on('onGridUpdated', e => this.setRowCount()); // 데이터 총 건수
+
+            var observer = new ResizeObserver((entries) => {
+                for (var entry in entries) {
+                    this.grid.refreshLayout();
+                }
+            });
+            observer.observe(document.querySelector('.u-container'));
+        },
+
+        setByFilter() {
+            var f = ${skillFilter};
+
+            // 그룹/개별 여부
+            var f_group = f.filter(e => e.type == 'GROUP_FLAG');
+            if (f_group && f_group.length > 0)
+                this.groupFlag = JSON.parse(f_group[0].col);
+
+            $('.skill-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
+            $('.skill-tab[data-is-group="' + this.groupFlag + '"]').siblings('.skill-tab').addClass('btn-clear');
+
+            // 리스트
+            var f_list = f.filter(e => e.type == 'LIST');
+            if (this.groupFlag) {
+                ts_skillgroup.updateValue(f_list.map(e => e.col));
+            } else {
+                ts_skillgroup.updateValue(f_list.map(e => e.value));
+                setSkillTree(f_list.map(e => e.value));
+                ts_skill.updateValue(f_list.map(e => e.col));
+            }
+
+            var skill = this.getChecked();
+            if (skill && skill.length > 0) {
+                this.list();
+            }
+        },
+
+        setRowCount() {
+            $('#skill-grid-count').text(this.grid.getRowCount());
+        },
+
+        getChecked(isGroup) {
+            if (typeof isGroup != 'boolean' && !isGroup)
+                isGroup = this.groupFlag;
+
+            if (isGroup)
+                return ts_skillgroup.value;
+            else
+                return ts_skill.value;
+        },
+
+        list() {
+            var checked = this.getChecked();
+            if (!checked || checked.length < 1) {
+                alert('조회 조건을 선택하세요');
+                return;
+            }
+
+            this.listCols = checked;
+
+            this.listAjax(true);
+            timer(this);
+        },
+
+        listAjax(init) {
+            if (!(this.listCols && this.listCols.length > 0))
+                return;
+
+            $.ajax({
+                url         : fineServletURL + '/uplus/skill/ajax',
+                type        : 'POST',
+                contentType : 'application/json',
+                context     : this,
+                data        : JSON.stringify({
+                    groupFlag : this.groupFlag,
+                    listCols  : this.listCols
+                }),
+                success     : function(res) {
+                    var data = JSON.parse(res.data);
+                    var sortState = this.grid.getSortState().columns;
+                    var pagination = this.grid.getPagination();
+
+                    if (!init) {
+                        var options = {};
+                        options.pageState = {page: pagination._currentPage, totalCount: data.length, perPage: pagination._options.perPage};
+
+                        this.grid.resetData(data, options);
+
+                        // 정렬
+                        if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+                            sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
+                        }
+
+                    } else {
+                        this.grid.resetData(data, {});
+                    }
+
+                    // 아이콘 제어
+                    $('#loading').toggle(false);
+                    $('#done').toggle(true);
+
+                    this.iTimer = setTimeout(function() {
+                        $('.load-state').toggle();
+                        clearTimeout(this.iTimer);
+                    }, 13000);
+                },
+                error       : function(request,status,error) {
+                    parent.BI.Msg.toast('스킬 조회 실패');
+                }
+            });
+        },
+
+        tab(isGroup) {
+            if (this.groupFlag == isGroup)
+                return;
+
+            var checked = this.getChecked(isGroup);
+            if (!checked || checked.length < 1) {
+                alert('조회 조건을 선택하세요');
+                return;
+            }
+
+            this.groupFlag = isGroup;
+
+            var $button = $('.skill-tab.btn-clear');
+            $button.removeClass('btn-clear').addClass('btn-primary');
+            $button.siblings('.skill-tab').removeClass('btn-primary').addClass('btn-clear');
+
+            this.grid.setColumnHeaders({name: this.groupFlag ? '스킬그룹' : '스킬'});
+
+            this.list();
+        },
+
+        saveFilter() {
+            var params = [];
+
+            // 리스트 (현재 조회 결과 기준으로 저장)
+            var list = {
+                page: this.page,
+                type: 'LIST',
+                data: this.listCols.map(e => { return {col: e, value: SKILL.data.filter(o => o.id == e)[0].group} })
+            };
+            params.push(getFilterData(list));
+
+            // 그룹/개별 여부 (현재 조회 결과 기준으로 저장)
+            var groupFlag = {
+                page: this.page,
+                type: 'GROUP_FLAG',
+                data: [{col: String(this.groupFlag)}]
+            };
+            params.push(getFilterData(groupFlag));
+
+            updateFilter(params);
+        },
+
+        excel() {
+            this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '스킬그룹현황' : '스킬현황')});
+        },
+
+        clear() {
+            ts_skillgroup.updateValue([]);
+            ts_skill.updateValue([]);
+        }
+    };
+
+    /*
+        스킬현황 조회 timer (15초 간격)
+    */
+    function timer(obj) {
+        clearTimeout(obj.timer);
+
+        obj.timer = setTimeout(function() {
+            obj.listAjax();
+            timer(obj);
+
+        }, 15000);
+    }
+
+    $('.load-state').toggle(false);
+
+    var skillTree = arrayToTree({data: SKILL.data, value: 'id', name: 'name', parent: 'group'});
+
+    // 스킬그룹 treeselect
+    var ts_skillgroup = new Treeselect({
+        parentHtmlContainer: document.querySelector('#skillgroup-tree'),
+        value: [],
+        options: skillTree.map(e => {
+            return {name: e.name, value: e.value, htmlAttr: e.htmlAttr}
+        }),
+        listSlotHtmlComponent: getAllSelectSlot('ts_skillgroup'),
+        emptyText: '결과없음',
+        placeholder: '- 선택 -'
+    });
+
+    ts_skillgroup.srcElement.addEventListener('input', e => {
+        treeselectAll(ts_skillgroup);
+        if (!ts_skillgroup.isListOpened) setSkillTree(e.detail);
+    });
+    ts_skillgroup.srcElement.addEventListener('name-change', e => {
+        if (!ts_skillgroup.isListOpened) setSkillTree(e.detail);
+    });
+    ts_skillgroup.srcElement.addEventListener('open', e => {
+        treeselectAll(ts_skillgroup);
+    });
+    ts_skillgroup.srcElement.addEventListener('close', e => {
+        setSkillTree(e.detail);
+    });
+    ts_skillgroup.srcElement.addEventListener('search', e => {
+        ts_skillgroup.searchText = e.detail;
+        setTimeout(function() {
+            treeselectAll(ts_skillgroup);
+        }, 400);
+    });
+
+    var ts_skill = new Treeselect({
+        parentHtmlContainer: document.querySelector('#skill-tree'),
+        value: [],
+        options: [],
+        showCount: true,
+        listSlotHtmlComponent: getAllSelectSlot('ts_skill'),
+        emptyText: '결과없음',
+        placeholder: '- 선택 -'
+    });
+
+    ts_skill.srcElement.addEventListener('input', e => {
+        treeselectAll(ts_skill);
+    });
+    ts_skill.srcElement.addEventListener('open', e => {
+        treeselectAll(ts_skill);
+    });
+    ts_skill.srcElement.addEventListener('search', e => {
+        if (!ts_skill.searchText && !e.detail) return;
+        if (ts_skill.searchText == e.detail) return;
+
+        ts_skill.searchText = e.detail;
+        setTimeout(function() {
+            treeselectAll(ts_skill);
+        }, 400);
+    });
+
+    SKILL.setGrid();
+    SKILL.setByFilter();
+
+    /* 스킬 treeselect (스킬그룹 변경 시) */
+    function setSkillTree(skillgroup) {
+        if (ts_skill) {
+            if (skillgroup == ts_skill.parent)
+                return;
+
+            ts_skill.destroy();
+        }
+
+        var data = skillTree.filter(e => skillgroup.indexOf(e.value) > -1);
+        var options = [];
+        data.forEach(e => options.push(...e.children));
+
+        if (data && data.length > 0) {
+            ts_skill.options = options;
+            ts_skill.mount();
+
+            ts_skill.parent = skillgroup;
+        }
+    }
+</script>
+
+<div class="filter-wrapper shadow-sm d-table">
+    <div class="d-table-cell">
+        <label>스킬그룹</label>
+        <div class="tree-container custom-select" id="skillgroup-tree" data-placeholder="- 선택 -"></div>
+        <label class="mb-0">스킬</label>
+        <div class="tree-container custom-select mb-0" id="skill-tree" data-placeholder="- 선택 -"></div>
+    </div>
+    <div class="d-table-cell">
+        <button class="btn btn-info" onclick="SKILL.list();">조회</button>
+        <button class="btn btn-clear" onclick="SKILL.clear();">초기화</button>
+    </div>
+
+    <div class="d-table-cell text-right">
+        <button class="btn btn-white" onclick="SKILL.saveFilter();">필터저장</button>
+        <button class="btn btn-white" onclick="initFilter({title: '스킬 현황', page: SKILL.page});">필터초기화</button>
+    </div>
+</div>
+
+<div class="grid-container">
+    <div class="d-table mb-2">
+        <div class="d-table-cell">
+            <div class="btn-group">
+                <button type="button" class="btn skill-tab" data-is-group="true"  onclick="SKILL.tab(true);">그룹</button>
+                <button type="button" class="btn skill-tab" data-is-group="false" onclick="SKILL.tab(false);">개별</button>
+            </div>
+            <span class="load-state" id="loading"></span>
+            <span class="load-state" id="done"></span>
+        </div>
+        <div class="d-table-cell text-right">
+            <span class="mr-2">총 <em id="skill-grid-count">0</em>건</span>
+            <button class="btn btn-white" onclick="SKILL.excel();">엑셀요청</button>
+        </div>
+    </div>
+
+    <div class="grid-wrapper" id="skill-grid-wrapper"></div>
+</div>
