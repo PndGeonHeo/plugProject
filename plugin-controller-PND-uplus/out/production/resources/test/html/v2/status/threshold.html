@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>임계치설정</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+<style>
+	.u-container {padding:20px;}
+
+	.btn, .custom-select {height:25px !important;}
+
+	#th-org-tree {width:400px;}
+	[class^=bgcolor] {display:inline-block;width:1em;height:1em;border-radius:1em;vertical-align:middle;margin:0 5px 1px 0;}
+	.bgcolor3 {background-color:#b3b366;}
+	.bgcolor4 {background-color:#6ec4c8;}
+	.bgcolor5 {background-color:#f7dc6f;}
+	.bgcolor14 {background-color:#f36666;}
+	.bgcolor15 {background-color:#6666e1;}
+
+	select.custom-select {width:2.15em;padding:0;padding-left:.375em;background:unset;}
+
+	.table tr {height:35px;}
+	.table thead th {background-color:#eef4fb;border-top:1px solid #a2b3dd;border-bottom:2px solid #a2b3dd;color:#221815;padding:4px 20px 4px 15px;vertical-align:middle;}
+	.table td {padding:4px 5px 4px 10px;border-bottom:1px solid #c9caca;vertical-align:middle;line-height:1.5em;font-size:.975em;}
+	.table th:last-child,
+	.table td:last-child {padding-right:10px;}
+	.icon-del {margin-left:3px;stroke:#c5c7cb;cursor:pointer;}
+	.icon-del:hover {stroke:#838790;}
+	.btn-remove {padding:.375em;}
+</style>
+
+<script>
+	var page = '${page}';
+
+	var orgInfo = ${orgInfo};         // 조직(array)
+	var orgTree = orgToTree(orgInfo); // 조직(tree)
+	var orgMap = orgToMap(orgInfo);
+
+	var th_data = ${data};
+	var th_values = ${dataValues};
+
+	var $hh, $mm, $ss;
+	var icon_del = '<svg class="icon-del" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 25 25" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+	var idx = 0;
+
+	var th_org;
+	var selected = [];
+
+	$(document).ready(function() {
+		th_org = new Treeselect({
+			parentHtmlContainer: document.getElementById('th-org-tree'),
+			value: [],
+			options: orgTree,
+			showCount: true,
+			emptyText: '결과없음',
+			placeholder: '- 조직 -'
+		});
+		th_org.srcElement.addEventListener('input', e => {
+			treeselectAll(th_org);
+		});
+
+		setThresholdData();
+
+		$(document).on('click', '.icon-del', function() {
+			$(this).siblings('select').val('00');
+		});
+
+		$(document).on('click', '#btn-add', function() {
+			if (addRow(th_org.groupedValue)) {
+				th_org.updateValue([]);
+			}
+		});
+	});
+
+	/* 기존 데이터 표출 */
+	function setThresholdData() {
+		th_data.forEach(d => {
+			if ($('tr[data-seq="' + d.seq + '"]').length < 1) {
+				addRow(th_values.filter(v => v.col_seq == d.seq).map(v => v.value), d.seq);
+			}
+
+			var his = {
+				3: getHis(d.col).split(':'),
+				4: getHis(d.col2).split(':'),
+				5: getHis(d.col3).split(':'),
+				14: getHis(d.col4).split(':'),
+				15: getHis(d.col5).split(':')
+			};
+
+			Object.keys(his).forEach(key => {
+				$('tr[data-seq="' + d.seq + '"] td[data-status="' + key + '"] select').each((j, sel) => $(sel).val(his[key][j]));
+			});
+		});
+	}
+
+	/* 행 추가 */
+	function addRow(org, seq) {
+		if (!org || org.length < 1) {
+			return false;
+		}
+
+		var dup = [].concat(...selected.map(e => e.value)).filter(e => org.includes(e));
+
+		if (dup.length > 0) {
+			BI.Msg.toast('이미 선택한 조직입니다\n\n' + dup.map(e => orgMap[e].fl_org_name).join('\n'));
+			return false;
+		}
+
+		var orgname = org.map(e => orgMap[e].fl_org_name);
+
+		if (org && selected.find(e => e.name == orgname)) {
+			return false;
+		}
+
+		if (!($hh && $mm && $ss)) {
+			$hh = $('<select class="custom-select hh"></select>');
+			$mm = $('<select class="custom-select mm"></select>');
+			$ss = $('<select class="custom-select ss"></select>');
+
+			for (var i=0; i<=23; i++) {
+				var s = i < 10 ? '0' + i : i;
+				$hh.append($('<option value="' + s + '">' + s + '</option>'));
+			}
+
+			for (var i=0; i<=59; i++) {
+				var s = i < 10 ? '0' + i : i;
+				$mm.append($('<option value="' + s + '">' + s + '</option>'));
+				$ss.append($('<option value="' + s + '">' + s + '</option>'));
+			}
+		}
+
+		var tr =  '<tr data-seq="' + (seq || '') + '" data-idx="' + idx + '">';
+			tr += '    <td>' + orgname.join('<br>') + '</td>';
+			tr += '    <td data-status="3">' + $hh[0].outerHTML + ' : ' + $mm[0].outerHTML + ' : ' + $ss[0].outerHTML + icon_del + '</td>';
+			tr += '    <td data-status="4">' + $hh[0].outerHTML + ' : ' + $mm[0].outerHTML + ' : ' + $ss[0].outerHTML + icon_del + '</td>';
+			tr += '    <td data-status="5">' + $hh[0].outerHTML + ' : ' + $mm[0].outerHTML + ' : ' + $ss[0].outerHTML + icon_del + '</td>';
+			tr += '    <td data-status="14">' + $hh[0].outerHTML + ' : ' + $mm[0].outerHTML + ' : ' + $ss[0].outerHTML + icon_del + '</td>';
+			tr += '    <td data-status="15">' + $hh[0].outerHTML + ' : ' + $mm[0].outerHTML + ' : ' + $ss[0].outerHTML + icon_del + '</td>';
+			tr += '    <td><button type="button" class="btn btn-secondary btn-remove" onclick="removeRow(' + idx + ');">삭제</button></td>';
+			tr += '</tr>';
+
+		$('#threshold-tbl tbody').append(tr);
+		selected.push({idx: idx, name: orgname.join(','), value: org});
+		idx++;
+
+		return true;
+	}
+
+	/* 행 삭제 */
+	function removeRow(idx) {
+		$('tr[data-idx="' + idx + '"]').remove();
+		selected.splice(selected.findIndex(e => e.idx == idx), 1);
+	}
+
+	/* 저장 */
+	function saveThreshold() {
+		var ft = new MultiFilter(page, 'THRESHOLD', 'THRESHOLD', 'N', 'Y');
+
+		selected.forEach(sel => {
+			var options = {};
+
+			$('tr[data-idx="' + sel.idx + '"]').find('td[data-status]').each((j, td) => {
+				var time = getSS($(td).find('.hh').val() + ':' + $(td).find('.mm').val() + ':' + $(td).find('.ss').val());
+
+				if (time > 0) {
+					switch ($(td).data('status')) {
+						case 3:
+							options.col = time;
+							break;
+
+						case 4:
+							options.col2 = time;
+							break;
+
+						case 5:
+							options.col3 = time;
+							break;
+
+						case 14:
+							options.col4 = time;
+							break;
+
+						case 15:
+							options.col5 = time;
+							break;
+					}
+				}
+			});
+
+			if (Object.values(options).length > 0) {
+				ft.addData('THRESHOLD', [].concat(...sel.value.map(orgcd => { return {value: orgcd, remark: orgMap[orgcd].fl_org_name} })), options);
+			}
+		});
+
+		var res = updateMultiFilter(ft);
+		if (res.result) {
+			parent.ft_threshold = parent.getThreshold(JSON.parse(res.filterData), JSON.parse(res.filterValue));
+			parent.threshold_close();
+		}
+	}
+</script>
+</head>
+
+<body>
+<div class="u-container">
+	<div class="mb-2 text-right">
+		<div class="tree-container custom-select mr-1" id="th-org-tree" data-placeholder="- 조직 -"></div>
+		<button type="button" class="btn btn-white" id="btn-add">추가</button>
+		<button type="button" class="btn btn-primary" onclick="saveThreshold();">저장</button>
+	</div>
+
+	<table class="table" id="threshold-tbl">
+		<thead>
+			<tr>
+				<th>조직</th>
+				<th width="138"><span class="bgcolor3"></span>대기</th>
+				<th width="138"><span class="bgcolor4"></span>이석</th>
+				<th width="138"><span class="bgcolor5"></span>후처리</th>
+				<th width="138"><span class="bgcolor14"></span>OB</th>
+				<th width="138"><span class="bgcolor15"></span>IB</th>
+				<th width="56"></th>
+			</tr>
+		</thead>
+		<tbody></tbody>
+	</table>
+</div>
+</body>
+</html>

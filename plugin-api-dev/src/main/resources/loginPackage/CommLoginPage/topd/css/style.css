@@ -1,0 +1,197 @@
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Segoe UI', sans-serif;
+
+      /* ✅ 전체 배경 이미지 */
+      background-image: url('/webroot/decision/view/report?op=resource&resource=/loginPackage/CommLoginPage/topd/image/bg_all.png');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+      position: relative;
+      overflow: hidden;
+    }
+
+
+    /* ✅ 위에 겹쳐지는 절반 이미지 */
+    .overlay-image {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 50%; /* 절반 */
+      background-image: url('http://localhost:8075/webroot/decision/view/report?op=resource&resource=/loginPackage/CommLoginPage/topd/image/bg_half_green.png');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      z-index: 0;
+    }
+
+
+    .bg-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 0;
+    }
+
+    .bg-bottom {
+      background-image: url('/webroot/decision/view/report?op=resource&resource=/loginPackage/CommLoginPage/topd/image/bg_half_green.png');
+      background-repeat: no-repeat;
+      background-position: bottom center;
+      background-size: cover;
+    }
+
+
+    /* ✅ 로그인 박스 */
+    .login-wrapper {
+      position: relative;
+      z-index: 1;
+      background: white;
+      width: 100%;             /* ✅ 기본적으로 100% 너비 */
+      max-width: 400px;        /* ✅ 최대 너비는 유지 */
+      margin: 0 auto;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 40px 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 30px;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .remember {
+      margin: 10px 0 20px;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .button {
+      width: 100%;
+      height: 48px;               /* ✅ 고정 높이 */
+      max-width: 320px;
+      text-align: center;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+
+    /* 버튼 색상만 개별 지정 */
+    #loginBtn {
+      background-color: #004d2f;
+      color: white;
+    }
+
+    #ssoBtn {
+      background-color: #555;
+      color: white;
+    }
+
+    .logo {
+      margin-top: 30px;
+      margin-bottom: 40px;
+      width: 160px;           /* 원하는 로고 너비 */
+      height: 50px;           /* 원하는 로고 높이 */
+      background-image: url('/webroot/decision/view/report?op=resource&resource=/loginPackage/CommLoginPage/Symmetric/image/login_logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .login-notice {
+      color: red;
+      font-size: 14px; /* 기본값 */
+    }
+    .login-title{
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #222;
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    @media (max-width: 768px) {
+      .login-wrapper {
+        padding: 32px 20px;
+      }
+
+      .form-group input {
+        font-size: 0.95rem;
+        padding: 10px 12px;
+      }
+
+      .button {
+        font-size: 0.95rem;
+        padding: 10px;
+        height: 44px;
+      }
+
+      .logo {
+        width: 120px;
+        height: 40px;
+      }
+
+      .login-title {
+        font-size: 1.4rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .login-wrapper {
+        padding: 24px 16px;
+      }
+
+      .form-group input {
+        font-size: 0.9rem;
+        padding: 8px 10px;
+      }
+
+      .button {
+        font-size: 0.9rem;
+        height: 42px;
+      }
+
+      .login-title {
+        font-size: 1.2rem;
+      }
+
+      .logo {
+        width: 100px;
+        height: 36px;
+        margin-top: 20px;
+        margin-bottom: 30px;
+      }
+    }

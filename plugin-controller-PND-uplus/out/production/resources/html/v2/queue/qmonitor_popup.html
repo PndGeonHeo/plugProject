@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>큐모니터</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.cookie.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+
+	<style>
+	body {padding:.5rem;}
+	#chart-container {height:92%;display:grid;align-items:center;justify-items:center;}
+	#chart-container .d-flex {width:100%;height:100%;}
+	#chart {width:30%;}
+	#grid-wrapper {width:70%;font-weight:500;}
+
+	.tui-grid-cell[data-sec="1"] {background-color:#66bd63;}
+	.tui-grid-cell[data-sec="2"] {background-color:#a6d96a;}
+	.tui-grid-cell[data-sec="3"] {background-color:#d9ef8b;}
+	.tui-grid-cell[data-sec="4"] {background-color:#fee08b;}
+	.tui-grid-cell[data-sec="5"] {background-color:#fdae61;}
+	.tui-grid-cell[data-sec="6"] {background-color:#f46d43;}
+ </style>
+</head>
+<body class="u-container">
+<p id="reload-time" class="text-right mb-2" style="display:none">일정 시간 뒤 새로고침 됩니다 (<em>00:00:00</em>)</p>
+<div id="chart-container" class="load-data">
+	<div class="d-flex">
+		<div id="chart"></div>
+		<div id="grid-wrapper"></div>
+	</div>
+</div>
+<script>
+	var qMap = {};
+	${qInfo}.forEach(e => qMap[e.id] = {qname: e.qname, description: e.description});
+
+	var wProp;
+	var winker;
+	var chart;
+	var timer;
+	var r_timer;
+	var grid;
+
+	createChart();
+	wsConnect(); // websocket
+
+	/* 공통코드관리 > qmonitor_reload 코드값(초단위)에 따라 일정 시간 뒤 새로고침 (메모리 부하 방지) */
+	if ('${reloadTime}') {
+		$('#reload-time').show();
+
+		var reloadTime = toNumber('${reloadTime}');
+		r_timer = setInterval(() => {
+			if (reloadTime > 0) {
+				reloadTime = reloadTime - 1;
+				$('#reload-time em').text(getHis(reloadTime)); // 상단 타이머
+
+			} else {
+				if (timer) {
+					clearTimeout(timer);
+				}
+
+				if (r_timer) {
+					clearInterval(r_timer);
+				}
+
+				if (winker) {
+					//winker.wDisconnect();
+					winker = null;
+				}
+
+				if (chart) {
+					chart.dispose();
+					chart = null;
+				}
+
+				if (grid) {
+					setSortState(); // grid 정렬값 있는 경우, 새로고침 후에도 정렬 유지하기 위함
+					grid.destroy();
+					grid = null;
+				}
+
+				location.reload();
+			}
+		}, 1000);
+	}
+
+	/* grid 정렬기준 쿠키 저장 */
+	function setSortState() {
+		var sortState = grid.getSortState().columns;
+		if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+			$.cookie(this.name + '_sort', JSON.stringify(sortState));
+		}
+	}
+
+	/* grid 정렬 */
+	function gridSort() {
+		// 쿠키에 저장된 정렬기준이 있는 경우에만 실행
+		if ($.cookie(this.name + '_sort')) {
+			var sortState = JSON.parse($.cookie(this.name + '_sort'));
+			if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+				sortState.forEach(e => grid.sort(e.columnName, e.ascending, true));
+			}
+
+			$.removeCookie(this.name + '_sort');
+		}
+	}
+
+	/* chart 생성 */
+	function createChart(data) {
+		chart = echarts.init(document.getElementById('chart'));
+
+		window.onresize = function() {
+			chart && chart.resize();
+		};
+
+		var option = {
+			animation: false,
+			textStyle: {
+				fontFamily: 'LG Smart'
+			},
+			grid: {
+				top: 10,
+				bottom: 10,
+				left: 10,
+				containLabel: true
+			},
+			xAxis: {
+				minInterval: 1
+			},
+			yAxis: [
+				{
+					type: 'category',
+					inverse: true,
+					data: ['1~10초', '11~20초', '21~30초', '31~40초', '41~50초', '51초이상']
+				}
+			],
+			series: {
+				type: 'bar',
+				label: {
+					show: true,
+					fontWeight: 500,
+					position: 'inside'
+				},
+				data: data
+			}
+		};
+
+		chart.setOption(option);
+	}
+
+	/* chart 갱신 */
+	function updateChart() {
+		if (!chart.getOption().animation) {
+			chart.setOption({animation: true});
+		}
+
+		chart.setOption({
+			series: {
+				type: 'bar',
+				data: getChartData()
+			}
+		});
+	}
+
+	/* chart data */
+	function getChartData(rows) {
+		rows = rows || grid.getData();
+
+		var colors = ['#66bd63', '#a6d96a', '#d9ef8b', '#fee08b', '#fdae61', '#f46d43'];
+		return ['1', '2', '3', '4', '5', '6'].map(sec => ({
+			value: rows.filter(e => e.sec == sec).length,
+			itemStyle: {color: colors[sec-1]}
+		}));
+	}
+
+	/* websocket connection */
+	function wsConnect() {
+		if (!(winker && winker.inactiveCloseFlag)) {
+			onLoading(true);
+		}
+
+		try {
+			if (!wProp) {
+				wProp = getWProperties();
+			}
+
+			winker = new winkWebSocket();
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, wsCallback, null, wProp.consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError('${alert}');
+		}
+	}
+
+	/* websocket request open */
+	function wsOpen() {
+		if (grid) {
+			setSortState();
+			grid.destroy();
+			grid = null;
+			createGrid();
+		}
+
+		// socket open
+		winker.wOpenStatExt(Object.keys(qMap), '207'); // 207: 대기호
+
+		onLoading(false);
+	}
+
+	/* websocket callback */
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		// onopen
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(wsOpen, 1000);
+		}
+
+		// onmessage
+		if (eventId == WMessageType.EventStatInfo) {
+			setData(objectDBId, objectType, statId, statVal);
+			if (!timer) {
+				setTimer(); // 대기시간 갱신
+			}
+		}
+
+		// onerror
+		if (eventId == WMessageType.EventError) {
+			wsError('${alert}');
+		}
+	}
+
+	/* websocket onmessage callback - grid 갱신 */
+	function setData(dbID, type, statId, statVal) {
+		/*
+			[이벤트 명세]
+			- Q: 대기
+			- D: 분배
+			- A: 포기
+			- P: 전환
+
+			대기시작(Q), 대기종료(D/A), 호전환완료(P) 시점에 전송
+		*/
+		var values = statVal.split(STA_DIM); // 이벤트(Q/D/A/P), 큐ID, 스킬ID, 스킬명, convID, ANI, 우선순위, 대기시작시간(UTC초), 이전convID(호전환시)
+		var ev = values[0];
+		var convID = values[4];
+
+		if (ev == 'D' || ev == 'A') {
+			// 대기종료
+			removeData(convID);
+			updateChart();
+
+			return;
+		}
+
+		if (ev == 'P') {
+			// 호전환
+			removeData(values[8]); // 이전 convID 제거
+		}
+
+		updateGrid(convID, parseStat(values));
+		updateChart();
+	}
+
+	/* grid 및 chart 갱신 (메모리 부하 방지) */
+	var upd_cnt = 0; // websocket 메시지 수신으로 인한 grid 데이터 갱신 횟수
+	async function viewInit() {
+		// 일정 횟수만큼 갱신됐을 시 grid 및 chart 재생성
+		if (upd_cnt > 500) {
+			var rows = grid.getData();
+
+			setSortState();
+			grid.destroy();
+			grid = null;
+			createGrid(rows);
+
+			chart.dispose();
+			chart = null;
+			createChart(getChartData(rows));
+
+			upd_cnt = 0;
+
+			await sleep(500);
+		}
+	}
+
+	/* grid 데이터 갱신 */
+	function updateGrid(convID, stat) {
+		viewInit();
+
+		gridSort();
+
+		stat.var5 = [...stat.var5].map((e, i) => (3 <= i && i <= 6) ? '*' : e).join('');
+
+		var row = grid.getData().find(e => e['var4'] == convID);
+		if (!row) {
+			// 신규 데이터 append
+			stat.qname = qMap[stat['var1']].qname;
+			stat.description = qMap[stat['var1']].description;
+			grid.appendRow(stat);
+
+		} else {
+			// 기존 데이터 update
+			Object.keys(stat).forEach(key => grid.setValue(row.rowKey, key, stat[key]));
+		}
+
+		upd_cnt++;
+	}
+
+	/* grid 데이터 제거 */
+	function removeData(convID) {
+		viewInit();
+
+		var row = grid.getData().find(e => e['var4'] == convID);
+		if (row) {
+			grid.removeRow(row.rowKey); // 제거
+		}
+	}
+
+	/* 데이터 파싱 */
+	function parseStat(values) {
+		var stat = {};
+		values.forEach((e, i) => stat['var' + i] = e);
+
+		var now = Math.round(Date.now() / 1000);
+		var o = getWaittime(now, stat['var7']);
+
+		stat['waittimeSS'] = o.value;
+		stat['waittime'] = getHis(o.value);
+		stat['sec'] = o.sec;
+
+		return stat;
+	}
+
+	/* 대기시간 update (5초 간격) */
+	function setTimer() {
+		clearTimeout(timer);
+
+		timer = setTimeout(() => {
+			var now = Math.round(Date.now() / 1000);
+			var rows = grid.getData();
+
+			rows.forEach(row => {
+				var o = getWaittime(now, row['var7']);
+
+				// 대기시간 5분 이상 경과된 호는 종료이벤트가 누락되었을 가능성이 있으므로, 해당 큐에 대한 대기호 목록을 재요청한다
+				if (o.value >= 310) {
+					reopenStat(row);
+
+				} else {
+					row['waittimeSS'] = o.value;
+					row['waittime'] = getHis(o.value);
+					row['sec'] = o.sec;
+
+					// 정렬기준 없는 경우, 개별 update
+					if (grid.getSortState().columns.length == 1 && grid.getSortState().columns[0].columnName == 'sortKey') {
+						grid.setValue(row.rowKey, 'waittimeSS', o.value);
+						grid.setValue(row.rowKey, 'waittime', getHis(o.value));
+						grid.setValue(row.rowKey, 'sec', o.sec);
+					}
+				}
+			});
+
+			// 정렬기준 있는 경우, 전체 update
+			if (!(grid.getSortState().columns.length == 1 && grid.getSortState().columns[0].columnName == 'sortKey')) {
+				grid.setRows(rows);
+			}
+
+			updateChart();
+			setTimer();
+
+		}, 5000);
+	}
+
+	/* winker 재요청 */
+	function reopenStat(stat) {
+		winker.wCloseStat(stat['var1'], '207');
+		winker.wOpenStat(stat['var1'], '207');
+	}
+
+	/* 대기시간 및 해당 구간 */
+	function getWaittime(var1, var2) {
+		var waittimeSS = toNumber(var1) - toNumber(var2); // 현재시간 - 대기시작시간
+		var sec = '';
+
+		if (waittimeSS < 0) {
+			waittimeSS = 0;
+		}
+
+		if (waittimeSS > 50) {
+			sec = '6';
+		} else if (waittimeSS > 40) {
+			sec = '5';
+		} else if (waittimeSS > 30) {
+			sec = '4';
+		} else if (waittimeSS > 20) {
+			sec = '3';
+		} else if (waittimeSS > 10) {
+			sec = '2';
+		} else {
+			sec = '1';
+		}
+
+		var result = {};
+		result.value = waittimeSS;
+		result.sec = sec;
+
+		return result;
+	}
+
+	/* 페이지 오픈 여부에 따른 통계 요청 처리 */
+	document.addEventListener('visibilitychange', function() {
+		if (winker) {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, active);
+
+			if (winker.inactiveCloseFlag) {
+				clearTimeout(timer);
+				timer = null;
+			}
+		}
+	});
+
+	var ft = {
+		value: ${queue}.join(),
+		popupName: this.name
+	};
+
+	/* 팝업 오픈 시 */
+	$(window).on('load', function() {
+		if (opener && opener.popupCols) {
+			opener.popupCols.QMONITOR.push(ft); // 조회 조건 저장 (필터저장용)
+		}
+		setPopupCount('QMONITOR', 'OPEN'); // 현재 팝업 개수 갱신 (cookie)
+	});
+
+	/* 팝업 닫을 시 */
+	$(window).on('beforeunload', function() {
+		if (opener && opener.popupCols) {
+			opener.popupCols.QMONITOR = opener.popupCols.QMONITOR.filter(e => e.value != ft.value); // 조회 조건 삭제 (필터저장용)
+		}
+		setPopupCount('QMONITOR', 'CLOSE'); // 현재 팝업 개수 갱신 (cookie)
+	});
+
+	var Grid = tui.Grid;
+	Grid.applyTheme('clean');
+	Grid.setLanguage('ko');
+
+	/* 대기시간 구간별 강조색 적용 */
+	class secRenderer {
+		constructor(props) {
+			this.el = document.createElement('div');
+			$(this.el).css('display', 'none');
+			this.render(props);
+		}
+
+		getElement() {
+			return this.el;
+		}
+
+		render(props) {
+			$('.tui-grid-cell[data-row-key="' + props.rowKey + '"]').attr('data-sec', props.value);
+		}
+	}
+
+	createGrid();
+
+	/* grid 생성 */
+	function createGrid(data) {
+		grid = new Grid({
+			el: document.getElementById('grid-wrapper'),
+			usageStatistics: false,
+			scrollX: false,
+			scrollY: true,
+			bodyHeight: $('.u-container').height() - 60,
+			minBodyHeight: 50,
+			rowHeight: 35,
+			minRowHeight: 35,
+			copyOptions: {
+				useFormattedValue: true
+			},
+			header: {
+				height: 35,
+				align: 'left'
+			},
+			columnOptions: {
+				resizable: true
+			},
+			columns: [
+				{
+					header: '큐번호',
+					name: 'qname',
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: '큐이름',
+					name: 'description',
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: '대기시간',
+					name: 'waittime',
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: '고객번호',
+					name: 'var5',
+					width: 120,
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: '순위',
+					name: 'var6',
+					width: 80,
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: '호ID',
+					name: 'var4',
+					ellipsis: true,
+					sortable: true
+				},
+				{
+					header: ' ',
+					name: 'sec',
+					width: 3,
+					minWidth: 3,
+					resizable: false,
+					renderer: {
+						type: secRenderer
+					},
+					formatter: ''
+				}
+			],
+			contextMenu: () => (
+				[
+					[{
+						name: 'export',
+						label: '엑셀요청',
+						action: () => excel()
+					}],
+				]
+			),
+			data: data
+		});
+	}
+
+	$(window).resize(ev => grid && grid.setBodyHeight($('.u-container').height() - 60));
+
+	/* 엑셀요청 */
+	function excel(r) {
+		if (!r) {
+			exportReasonForm(); // 사유입력
+
+		} else {
+			grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_큐모니터'});
+		}
+	}
+</script>
+</body>
+</html>

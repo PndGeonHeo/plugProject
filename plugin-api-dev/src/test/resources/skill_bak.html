@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>큐/스킬 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.simple-tree-picker.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-pagination.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+	<style>
+		html, body {height:100%;}
+		.u-container {height:100vh;}
+		.u-container * {font-size:13px;font-weight:500;color:#444;}
+		.sub-container {width:50%;}
+		.sub-container:not(:last-child) {border-right:1px solid #0000001a;}
+		button, select, input[type=text] {height:25px !important;}
+
+		.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;}
+		.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+
+		.btn {line-height:12px;color:#fff;}
+		.btn-clear {background-color:#d9d9d9;}
+		.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+		.dropdown {width:140px;}
+		.dropdown-menu {width:18em;}
+		.dropdown .custom-select {padding-top:2px;}
+		.caret-container {display:none;}
+
+		.grid-container {padding:1.5rem 2rem 1rem;}
+		.summary {margin-bottom:2.5rem;}
+		.summary tr {height:40px;}
+		.summary tr:last-child {border-top:2px solid #bcbcbc;}
+		.summary th {background-color:#f4f4f4;}
+		.summary th, .table td {vertical-align:middle;text-align:center;padding:.45rem;border:1px solid #c9caca;}
+		.summary th:first-child, .table td:first-child {border-left-width:0;}
+		.summary th:last-child, .table td:last-child {border-right-width:0;}
+
+		.d-table {width:100%;}
+
+		#loading {display:inline-block;background:url(/webroot/images/icons8-load-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;animation:6s linear 0s infinite normal none running rotate_image;transform-origin:50% 50%;margin-left:5px;}
+		#done {display:inline-block;background:url(/webroot/images/icons8-done-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;margin-left:5px;}
+
+		@keyframes rotate_image{
+			100% {
+				transform: rotate(360deg);
+			}
+		}
+	</style>
+
+	<script>
+		var Grid = tui.Grid;
+		Grid.applyTheme('clean');
+		Grid.setLanguage('ko');
+
+		$(document).ready(function() {
+			$('.load-state').toggle(false);
+
+			// queue select
+			$('#qgroup-menu').treepicker({
+				tree       : arrayToTree({data: Q_OBJ.data.filter(e => e.depth == 1), key: 'id', parentKey: 'group'}),
+				inputname  : 'queue',
+				code       : 'id',
+				codename   : 'name',
+				parentcode : 'group',
+				buttonid   : 'qgroup-btn',
+				buttontext : '- 선택 -'
+			});
+
+			$('#qgroup-menu input[type="checkbox"]').change(function() {
+				var qgroup = Array.from($('#qgroup-menu input[type="checkbox"]:checked').map((i, e) => $(e).val()));
+
+				$('#q-menu').empty();
+
+				if (qgroup.length < 1) {
+					$('#q-btn').prop('disabled', true);
+					return;
+				}
+
+				var queue = Q_OBJ.data.filter(e => qgroup.indexOf(e.group) > -1);
+
+				$('#q-menu').treepicker({
+					tree       : arrayToTree({data: queue, key: 'id', parentKey: ''}),
+					inputname  : 'queue',
+					code       : 'id',
+					codename   : 'name',
+					parentcode : 'group',
+					buttonid   : 'q-btn',
+					buttontext : '- 선택 -'
+				});
+
+				$('#q-btn').prop('disabled', false);
+			});
+
+			// skill select
+			$('#skillgroup-menu').treepicker({
+				tree       : arrayToTree({data: SKILL_OBJ.data.filter(e => e.depth == 1), key: 'id', parentKey: 'group'}),
+				inputname  : 'skill',
+				code       : 'id',
+				codename   : 'name',
+				parentcode : 'group',
+				buttonid   : 'skillgroup-btn',
+				buttontext : '- 선택 -'
+			});
+
+			$('#skillgroup-menu input[type="checkbox"]').change(function() {
+				var skillgroup = Array.from($('#skillgroup-menu input[type="checkbox"]:checked').map((i, e) => $(e).val()));
+
+				$('#skill-menu').empty();
+
+				if (skillgroup.length < 1) {
+					$('#skill-btn').prop('disabled', true);
+					return;
+				}
+
+				var skill = SKILL_OBJ.data.filter(e => skillgroup.indexOf(e.group) > -1);
+
+				$('#skill-menu').treepicker({
+					tree       : arrayToTree({data: skill, key: 'id', parentKey: ''}),
+					inputname  : 'skill',
+					code       : 'id',
+					codename   : 'name',
+					parentcode : 'group',
+					buttonid   : 'skill-btn',
+					buttontext : '- 선택 -'
+				});
+
+				$('#skill-btn').prop('disabled', false);
+			});
+
+			Q_OBJ.setGrid();
+			SKILL_OBJ.setGrid();
+
+			Q_OBJ.setByFilter();
+			SKILL_OBJ.setByFilter();
+		});
+
+		var Q_OBJ = {
+			page: 'QUEUE',
+			data: ${qInfo},
+			listCols: [],
+			popupCols: {
+				ROUTE: [],
+				MONITOR: []
+			},
+			groupFlag: true,
+			grid: null,
+			gridOptions: {
+				scrollX: false,
+				scrollY: false,
+				minBodyHeight: 40,
+				minRowHeight: 40,
+				rowHeight: 40,
+				usageStatistics: false,
+				header: {
+					height: 40,
+					align: 'right',
+					columns: [
+						{name: 'name', align: 'left'}
+					]
+				},
+				columns: [
+					{
+						header: 'id',
+						name: 'id',
+						hidden: true
+					},
+					{
+						header: '큐그룹',
+						name: 'name',
+						align: 'left',
+						sortable: true,
+						resizable: true,
+						width: 200
+					},
+					{
+						header: '인입호',
+						name: '211',
+						align: 'right',
+						sortable: true,
+						formatter: function(data) {
+							return data.value.toLocaleString();
+						}
+					},
+					{
+						header: '대기호',
+						name: '205',
+						align: 'right',
+						sortable: true,
+						formatter: function(data) {
+							return data.value.toLocaleString();
+						}
+					},
+					{
+						header: '포기호',
+						name: '221',
+						hidden: true,
+						align: 'right',
+						sortable: true,
+						formatter: function(data) {
+							return data.value.toLocaleString();
+						}
+					},
+					{
+						header: '응답호',
+						name: '212',
+						align: 'right',
+						sortable: true,
+						formatter: function(data) {
+							return data.value.toLocaleString();
+						}
+					},
+					{
+						header: '20초이내응답호',
+						name: '215',
+						hidden: true
+					},
+					{
+						header: '응답률 (%)',
+						name: 'acdpt',
+						align: 'right',
+						sortable: true,
+						comparator: function(valueA, valueB, rowA, rowB) {
+							var a = toNumber((rowA['212'] / rowA['211']) * 100);
+							var b = toNumber((rowB['212'] / rowB['211']) * 100);
+							return a - b;
+						},
+						formatter: function(data) {
+							var value = (data.row['212'] / data.row['211']) * 100; // (응답호/인입호) * 100
+							return toNumber(value).toFixed(1) + '%';
+						}
+					},
+					{
+						header: 'SL (%)',
+						name: 'sl',
+						align: 'right',
+						sortable: true,
+						comparator: function(valueA, valueB, rowA, rowB) {
+							var a = toNumber((rowA['215'] / rowA['211']) * 100);
+							var b = toNumber((rowB['215'] / rowB['211']) * 100);
+							return a - b;
+						},
+						formatter: function(data) {
+							var value = (data.row['215'] / data.row['211']) * 100; // (20초이내응답호/인입호) * 100
+							return toNumber(value).toFixed(1) + '%';
+						}
+					}
+				],
+				summary: {
+					defaultContent: {
+						useAutoSummary: true
+					}
+				},
+				pageOptions: {
+					useClient: true,
+					perPage: 11
+				}
+			},
+
+			setGrid() {
+				this.gridOptions.el = $('#q-grid-wrapper')[0];
+				this.grid = new Grid(this.gridOptions);
+				this.grid.on('afterChange', e => this.summary()); // summary update
+
+				var observer = new ResizeObserver((entries) => {
+					for (var entry in entries) {
+						this.grid.refreshLayout();
+					}
+				});
+				observer.observe(document.querySelector('.u-container'));
+			},
+
+			setByFilter() {
+				var f = ${qFilter};
+
+				// 그룹/개별 여부
+				var f_group = f.filter(e => e.type == 'GROUP_FLAG');
+				if (f_group && f_group.length > 0)
+					this.groupFlag = JSON.parse(f_group[0].col);
+
+				$('.q-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
+				$('.q-tab[data-is-group="' + this.groupFlag + '"]').siblings('.q-tab').addClass('btn-clear');
+
+				// 리스트
+				var f_list = f.filter(e => e.type == 'LIST');
+				if (this.groupFlag) {
+					$('#qgroup-menu').treepicker('set', Array.from(new Set(f_list.map(e => e.col))));
+				} else {
+					$('#qgroup-menu').treepicker('set', Array.from(new Set(f_list.map(e => e.value))));
+					$('#q-menu').treepicker('set', f_list.map(e => e.col));
+				}
+
+				var checked = this.getChecked();
+				if (checked && checked.length > 0) {
+					this.list();
+				}
+
+				// 라우트현황
+				var f_route = f.filter(e => e.type == 'ROUTE');
+				this.route(f_route);
+
+				// 큐모니터
+				var f_monitor = f.filter(e => e.type == 'MONITOR');
+				this.qmonitor(f_monitor);
+			},
+
+			setRowCount() {
+				$('#q-grid-count').text(this.grid.getRowCount());
+			},
+
+			getChecked(isGroup) {
+				if (typeof isGroup != 'boolean' && !isGroup)
+					isGroup = this.groupFlag;
+
+				if (isGroup)
+					return $('#qgroup-menu').treepicker('val');
+				else
+					return $('#q-menu').treepicker('val');
+
+				//var $checked = $('input[name="queue"]:checked');
+				//var $qgroup = $checked.filter((i, e) => $(e).data('depth') == 1);
+				//var $queue = $checked.filter((i, e) => $(e).data('depth') == 2);
+				//
+				//if (isGroup) {
+				//	var group;
+				//
+				//	if ($queue.length > 0) {
+				//		group = Array.from(new Set($queue.map((i, e) => $(e).data('parent'))));
+				//
+				//	} else {
+				//		group = Array.from($qgroup.map((i, e) => $(e).val()));
+				//	}
+				//
+				//	return this.data.filter(e => group.indexOf(e.group) > -1).map(e => e.id);
+				//
+				//} else {
+				//	if ($queue.length < 1) return;
+				//
+				//	return Array.from($queue.map((i, e) => $(e).val()));
+				//}
+			},
+
+			list() {
+				var checked = this.getChecked();
+				if (!checked || checked.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+
+				this.listCols = checked;
+
+				// 기존 연결 해제 후 재연결
+				if (isOpen(winker)) {
+					winker.wDisconnect();
+				}
+
+				wsConnect();
+			},
+
+			tab(isGroup) {
+				if (this.groupFlag == isGroup)
+					return;
+
+				var checked = this.getChecked(isGroup);
+				if (!checked || checked.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+
+				this.groupFlag = isGroup;
+
+				var $button = $('.q-tab.btn-clear');
+				$button.removeClass('btn-clear').addClass('btn-primary');
+				$button.siblings('.q-tab').removeClass('btn-primary').addClass('btn-clear');
+
+				this.grid.setColumnHeaders({name: this.groupFlag ? '큐그룹' : '큐'});
+
+				this.list();
+			},
+
+			saveFilter() {
+				var params = [];
+
+				// 리스트 (현재 조회 결과 기준으로 저장)
+				var list = {
+					page: this.page,
+					type: 'LIST',
+					data: this.listCols.map(e => { return {col: e, value: this.data.filter(o => o.id == e)[0].group} })
+				};
+				params.push(getFilterData(list));
+
+				// 그룹/개별 여부 (현재 조회 결과 기준으로 저장)
+				var groupFlag = {
+					page: this.page,
+					type: 'GROUP_FLAG',
+					data: [{col: String(this.groupFlag)}]
+				};
+				params.push(getFilterData(groupFlag));
+
+				// 라우트현황 팝업
+				var cols = this.popupCols.ROUTE;
+				var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+				var route = {
+					page: this.page,
+					type: 'ROUTE',
+					data: data.map(e => { return {col: e} })
+				};
+				params.push(getFilterData(route));
+
+				// 큐모니터 팝업
+				cols = this.popupCols.MONITOR;
+				var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+				var monitor = {
+					page: this.page,
+					type: 'MONITOR',
+					data: data.map(e => { return {col: e} })
+				};
+				params.push(getFilterData(monitor));
+
+				updateFilter(params);
+			},
+
+			excel() {
+				this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '큐그룹현황' : '큐현황')});
+			},
+
+			summary() {
+				var summary = this.grid.getSummaryValues();
+
+				$('#cnt205').text(summary['205'].sum);	// 대기호
+				$('#cnt211').text(summary['211'].sum);	// 인입호
+				$('#cnt221').text(summary['221'].sum);	// 포기호
+				$('#cnt212').text(summary['212'].sum);	// 응답호
+				$('#acdpt').text(toNumber((summary['212'].sum / summary['211'].sum) * 100).toFixed(1) + '%');	// 응답률 (응답호/인입호 * 100)
+			},
+
+			route(data) {
+				var checked = [];
+
+				if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
+					checked = data.filter(e => e.col).map(obj => obj.col);
+					if (checked.length < 1) return;
+
+				} else {	// 사용자 직접 오픈
+					var checked = this.getChecked(false);
+					if (!checked || checked.length < 1) {
+						alert('조회 조건을 선택하세요');
+						return;
+					}
+				}
+
+				var $fm = $('#route-form');
+				$fm.empty();
+
+				checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+
+				var popupName = 'r-' + checked.join();
+
+				window.open('', popupName, 'width=890,height=295');
+				$fm.attr('target', popupName);
+				$fm.submit();
+			},
+
+			qmonitor(data) {
+				var checked = [];
+
+				if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
+					checked = data.filter(e => e.col).map(obj => obj.col);
+
+				} else {	// 사용자 직접 오픈
+					var checked = this.getChecked(true);
+					if (!checked || checked.length < 1) {
+						alert('조회 조건을 선택하세요');
+						return;
+					}
+				}
+
+				if (checked.length < 1) return;
+
+				var $fm = $('#qmonitor-form');
+				$fm.empty();
+
+				checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'qgroup', value: e})));
+
+				var popupName = 'q-' + checked.join();
+
+				window.open('', popupName, 'width=500,height=310');
+				$fm.attr('target', popupName);
+				$fm.submit();
+			},
+
+			clear() {
+				$('#qgroup-menu').treepicker('clear');
+				$('#q-menu').treepicker('clear');
+			}
+		};
+
+		var SKILL_OBJ = {
+			page: 'SKILL',
+			data: ${skillInfo},
+			listCols: [],
+			groupFlag: true,
+			grid: null,
+			gridOptions: {
+				scrollX: false,
+				scrollY: false,
+				minBodyHeight: 40,
+				minRowHeight: 40,
+				rowHeight: 40,
+				usageStatistics: false,
+				header: {
+					height: 40,
+					align: 'right',
+					columns: [
+						{name: 'name', align: 'left'}
+					]
+				},
+				columns: [
+					{header: '스킬그룹',  name: 'name',  align: 'left', sortable: true, resizable: true, width: 200},
+					{header: '로그인',   name: 'login', align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: '대기',     name: 'wait',  align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: 'IB',      name: 'ib',    align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: 'OB',      name: 'ob',    align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: '후처리',   name: 'acw',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: '이석',     name: 'aux',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }},
+					{header: '기타',     name: 'etc',   align: 'right', sortable: true, formatter: function(data) { return data.value.toLocaleString(); }}
+				],
+				pageOptions: {
+					useClient: true,
+					perPage: 15
+				}
+			},
+
+			setGrid() {
+				this.gridOptions.el = $('#skill-grid-wrapper')[0];
+				this.grid = new Grid(this.gridOptions);
+				this.grid.on('onGridUpdated', e => this.setRowCount()); // 데이터 총 건수
+
+				var observer = new ResizeObserver((entries) => {
+					for (var entry in entries) {
+						this.grid.refreshLayout();
+					}
+				});
+				observer.observe(document.querySelector('.u-container'));
+			},
+
+			setByFilter() {
+				var f = ${skillFilter};
+
+				// 그룹/개별 여부
+				var f_group = f.filter(e => e.type == 'GROUP_FLAG');
+				if (f_group && f_group.length > 0)
+					this.groupFlag = JSON.parse(f_group[0].col);
+
+				$('.skill-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
+				$('.skill-tab[data-is-group="' + this.groupFlag + '"]').siblings('.skill-tab').addClass('btn-clear');
+
+				// 리스트
+				var f_list = f.filter(e => e.type == 'LIST');
+				if (this.groupFlag) {
+					$('#skillgroup-menu').treepicker('set', Array.from(new Set(f_list.map(e => e.col))));
+				} else {
+					$('#skillgroup-menu').treepicker('set', Array.from(new Set(f_list.map(e => e.value))));
+					$('#skill-menu').treepicker('set', f_list.map(e => e.col));
+				}
+
+				var skill = this.getChecked();
+				if (skill && skill.length > 0) {
+					this.list();
+				}
+			},
+
+			setRowCount() {
+				$('#skill-grid-count').text(this.grid.getRowCount());
+			},
+
+			getChecked(isGroup) {
+				if (typeof isGroup != 'boolean' && !isGroup)
+					isGroup = this.groupFlag;
+
+				if (isGroup)
+					return $('#skillgroup-menu').treepicker('val');
+				else
+					return $('#skill-menu').treepicker('val');
+
+				//var $checked = $('input[name="skill"]:checked');
+				//var $skillgroup = $checked.filter((i, e) => $(e).data('depth') == 1);
+				//var $skill = $checked.filter((i, e) => $(e).data('depth') == 2);
+				//
+				//if (isGroup) {
+				//	var group;
+				//
+				//	if ($skill.length > 0) {
+				//		group = Array.from(new Set($skill.map((i, e) => $(e).data('parent'))));
+				//
+				//	} else {
+				//		group = Array.from($skillgroup.map((i, e) => $(e).val()));
+				//	}
+				//
+				//	return SKILL_OBJ.data.filter(e => group.indexOf(e.group) > -1).map(e => e.id);
+				//
+				//} else {
+				//	if ($skill.length < 1) return;
+				//
+				//	return Array.from($skill.map((i, e) => $(e).val()));
+				//}
+			},
+
+			list() {
+				var checked = this.getChecked();
+				if (!checked || checked.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+
+				this.listCols = checked;
+
+				this.listAjax();
+				timer(this);
+			},
+
+			listAjax() {
+				if (!(this.listCols && this.listCols.length > 0))
+					return;
+
+				$.ajax({
+					url         : fineServletURL + '/uplus/skill/ajax',
+					type        : 'POST',
+					contentType : 'application/json',
+					context     : this,
+					data        : JSON.stringify({
+						groupFlag : this.groupFlag,
+						listCols  : this.listCols
+					}),
+					success     : function(res) {
+						var data = JSON.parse(res.data);
+
+						var sortState = this.grid.getSortState().columns;
+						var pagination = this.grid.getPagination();
+						var options = {};
+						options.pageState = {page: pagination._currentPage, totalCount: data.length, perPage: pagination._options.perPage};
+
+						this.grid.resetData(data, options);
+
+						// 정렬
+						if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+							sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
+						}
+
+						// 아이콘 제어
+						$('#loading').toggle(false);
+						$('#done').toggle(true);
+
+						this.iTimer = setTimeout(function() {
+							$('.load-state').toggle();
+							clearTimeout(this.iTimer);
+						}, 12000);
+					},
+					error       : function(request,status,error) {
+						parent.BI.Msg.toast('스킬 조회 실패');
+					}
+				});
+			},
+
+			tab(isGroup) {
+				if (this.groupFlag == isGroup)
+					return;
+
+				var checked = this.getChecked(isGroup);
+				if (!checked || checked.length < 1) {
+					alert('조회 조건을 선택하세요');
+					return;
+				}
+
+				this.groupFlag = isGroup;
+
+				var $button = $('.skill-tab.btn-clear');
+				$button.removeClass('btn-clear').addClass('btn-primary');
+				$button.siblings('.skill-tab').removeClass('btn-primary').addClass('btn-clear');
+
+				this.grid.setColumnHeaders({name: this.groupFlag ? '스킬그룹' : '스킬'});
+
+				this.list();
+			},
+
+			saveFilter() {
+				var params = [];
+
+				// 리스트 (현재 조회 결과 기준으로 저장)
+				var list = {
+					page: this.page,
+					type: 'LIST',
+					data: this.listCols.map(e => { return {col: e, value: SKILL_OBJ.data.filter(o => o.id == e)[0].group} })
+				};
+				params.push(getFilterData(list));
+
+				// 그룹/개별 여부 (현재 조회 결과 기준으로 저장)
+				var groupFlag = {
+					page: this.page,
+					type: 'GROUP_FLAG',
+					data: [{col: String(this.groupFlag)}]
+				};
+				params.push(getFilterData(groupFlag));
+
+				updateFilter(params);
+			},
+
+			excel() {
+				this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '스킬그룹현황' : '스킬현황')});
+			},
+
+			clear() {
+				$('#skillgroup-menu').treepicker('clear');
+				$('#skill-menu').treepicker('clear');
+			}
+		};
+
+		/*
+			스킬현황 조회 timer (15초 간격)
+		*/
+		function timer(obj) {
+			clearTimeout(obj.timer);
+
+			obj.timer = setTimeout(function() {
+				obj.listAjax();
+				timer(obj);
+
+			}, 15000);
+		}
+
+		var winker;
+		var wStat = {};
+		var dummyStat = {id: '', name: '', 205: 0, 211: 0, 212: 0, 215: 0, 221: 0};
+
+		/*
+			create websocket, connect to server
+		*/
+		function wsConnect() {
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+			var consoleFlag   = true;
+			var wssFlag       = false;
+
+			winker.wConnect(WProperties.strHostP, WProperties.intPortP, WProperties.strHostB, WProperties.intPortB, eventCallback, logCallback, consoleFlag, wssFlag);
+		}
+
+		/*
+			open connection(stat)
+		*/
+		function wsOpen() {
+			if (Q_OBJ.grid) Q_OBJ.grid.clear();
+
+			var dbIDs;
+			if (Q_OBJ.groupFlag) {
+				var queue = Q_OBJ.data.filter(e => Q_OBJ.listCols.indexOf(e.group) > -1);
+				dbIDs = queue.map(e => e.id).join(STA_DIM);
+			} else {
+				dbIDs = Q_OBJ.listCols.join(STA_DIM);
+			}
+
+			console.log(dbIDs);
+
+			var statID = [205, 212, 215, 221].join(STA_DIM); // 인입호 = 응답호(212) + 포기호(221) 이므로 별도 요청 X
+
+			winker.wOpenStatExt(dbIDs, statID);
+		}
+
+		/*
+			websocket callback
+		*/
+		function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+			// 서버 연결 완료
+			if (eventId == WMessageType.EventServerConnected) {
+				setTimeout(function() {
+					wsOpen();
+				}, 1000);
+			}
+
+			// 메시지 수신
+			if (eventId == WMessageType.EventStatInfo) {
+				if (Q_OBJ.groupFlag) {
+					setGroupData(objectDBId, objectType, statId, statVal);
+				} else {
+					setData(objectDBId, objectType, statId, statVal);
+				}
+			}
+		}
+
+		/*
+			큐현황 data update - 그룹
+		*/
+		function setGroupData(dbID, type, statId, statVal) {
+			var group = Q_OBJ.data.filter(e => e.id == dbID)[0].group;
+			var stat = wStat[group];
+			if (!stat) {
+				stat = {
+					id: group,
+					name: Q_OBJ.data.filter(e => e.id == group)[0].name,
+					values: {205: {}, 211: {}, 212: {}, 215: {}, 221: {}}
+				};
+				wStat[group] = stat;
+			}
+
+			var values = stat.values;
+			values[statId][dbID] = toNumber(statVal);
+
+			// 인입호 = 응답호(212) + 포기호 (221)
+			if (statId == '212' || statId == '221') {
+				values['211'][dbID] = values['212'][dbID] + values['221'][dbID];
+			}
+
+			var row = Q_OBJ.grid.findRows({id: stat.id});
+			if (row.length < 1) {
+				var rowdata = JSON.parse(JSON.stringify(dummyStat));
+				rowdata.id = stat.id;
+				rowdata.name = stat.name;
+				Q_OBJ.grid.appendRow(rowdata);
+				row = Q_OBJ.grid.findRows({id: stat.id});
+
+				Q_OBJ.setRowCount();
+			}
+
+			Object.keys(values).forEach(key => {
+				var sum = Object.values(values[key]).reduce((a, b) => a + b, 0);
+				Q_OBJ.grid.setValue(row[0].rowKey, key, sum);
+			});
+		}
+
+		/*
+			큐현황 data update - 개별
+		*/
+		function setData(dbID, type, statId, statVal) {
+			var stat = wStat[dbID];
+			if (!stat) {
+				stat = JSON.parse(JSON.stringify(dummyStat));
+				stat.id = dbID;
+				stat.name = Q_OBJ.data.filter(e => e.id == dbID)[0].name;
+				wStat[dbID] = stat;
+			}
+
+			stat[statId] = toNumber(statVal);
+
+			var row = Q_OBJ.grid.findRows({id: dbID});
+			if (row.length < 1) {
+				Q_OBJ.grid.appendRow(stat);
+				row = Q_OBJ.grid.findRows({id: dbID});
+
+				Q_OBJ.setRowCount();
+			}
+
+			//Q_OBJ.grid.setRow(row[0].rowKey, stat);
+			Q_OBJ.grid.setValue(row[0].rowKey, statId, stat[statId]);
+
+			// 인입호 = 응답호(212) + 포기호 (221)
+			if (statId == '212' || statId == '221') {
+				stat['211'] = stat['212'] + stat['221'];
+				Q_OBJ.grid.setValue(row[0].rowKey, '211', stat['211']);
+			}
+
+			Q_OBJ.summary();
+		}
+	</script>
+</head>
+<body>
+<!--라우트현황-->
+<form id="route-form" action="${fineServletURL}/uplus/skill/route" method="GET"></form>
+<!--큐모니터-->
+<form id="qmonitor-form" action="${fineServletURL}/uplus/skill/qmonitor" method="GET"></form>
+
+<div class="u-container d-flex">
+	<!--큐그룹/큐-->
+	<div class="sub-container">
+		<div class="filter-wrapper shadow-sm d-table">
+			<div class="d-table-cell">
+				<label>큐그룹</label>
+				<div class="dropdown d-inline-block">
+					<button type="button" id="qgroup-btn" class="custom-select text-left" data-toggle="dropdown">- 선택 -</button>
+					<div class="dropdown-menu" id="qgroup-menu"></div>
+				</div>
+				<label>큐</label>
+				<div class="dropdown d-inline-block">
+					<button type="button" id="q-btn" class="custom-select text-left" data-toggle="dropdown" disabled="disabled">- 선택 -</button>
+					<div class="dropdown-menu" id="q-menu"></div>
+				</div>
+				<button class="btn btn-info"  onclick="Q_OBJ.list();">조회</button>
+				<button class="btn btn-clear" onclick="Q_OBJ.clear();">초기화</button>
+				<button class="btn btn-info"  onclick="Q_OBJ.route();">라우트현황</button>
+				<button class="btn btn-info"  onclick="Q_OBJ.qmonitor();">큐모니터</button>
+			</div>
+
+			<div class="d-table-cell text-right">
+				<button class="btn btn-white" onclick="Q_OBJ.saveFilter();">필터저장</button>
+				<button class="btn btn-white" onclick="initFilter({title: '큐 현황', page: Q_OBJ.page});">필터초기화</button>
+			</div>
+		</div>
+
+		<div class="grid-container">
+			<!-- summary -->
+			<table class="table summary">
+				<colgroup>
+					<col width="20%">
+					<col width="20%">
+					<col width="20%">
+					<col width="20%">
+					<col width="20%">
+				</colgroup>
+				<tr>
+					<th>대기호</th>
+					<th>인입호</th>
+					<th>포기호</th>
+					<th>응답호</th>
+					<th>응답률 (%)</th>
+				</tr>
+				<tr>
+					<td id="cnt205">0</td>
+					<td id="cnt211">0</td>
+					<td id="cnt221">0</td>
+					<td id="cnt212">0</td>
+					<td id="acdpt">0</td>
+				</tr>
+			</table>
+			<!-- // summary -->
+
+			<div class="d-table mb-2">
+				<div class="d-table-cell">
+					<div class="btn-group">
+						<button type="button" class="btn q-tab" data-is-group="true"  onclick="Q_OBJ.tab(true);">그룹</button>
+						<button type="button" class="btn q-tab" data-is-group="false" onclick="Q_OBJ.tab(false);">개별</button>
+					</div>
+				</div>
+				<div class="d-table-cell text-right">
+					<span class="mr-2">총 <em id="q-grid-count">0</em>건</span>
+					<button class="btn btn-white" onclick="Q_OBJ.excel();">엑셀요청</button>
+				</div>
+			</div>
+
+			<div class="grid-wrapper" id="q-grid-wrapper"></div>
+		</div>
+	</div>
+	<!--//큐그룹/큐-->
+
+	<div class="sub-container">
+		<div class="filter-wrapper shadow-sm d-table">
+			<div class="d-table-cell">
+				<label>스킬그룹</label>
+				<div class="dropdown d-inline-block">
+					<button type="button" id="skillgroup-btn" class="custom-select text-left" data-toggle="dropdown">- 선택 -</button>
+					<div class="dropdown-menu" id="skillgroup-menu"></div>
+				</div>
+				<label>스킬</label>
+				<div class="dropdown d-inline-block">
+					<button type="button" id="skill-btn" class="custom-select text-left" data-toggle="dropdown">- 선택 -</button>
+					<div class="dropdown-menu" id="skill-menu"></div>
+				</div>
+				<button class="btn btn-info" onclick="SKILL_OBJ.list();">조회</button>
+				<button class="btn btn-clear" onclick="SKILL_OBJ.clear();">초기화</button>
+			</div>
+
+			<div class="d-table-cell text-right">
+				<button class="btn btn-white" onclick="SKILL_OBJ.saveFilter();">필터저장</button>
+				<button class="btn btn-white" onclick="initFilter({title: '스킬 현황', page: SKILL_OBJ.page});">필터초기화</button>
+			</div>
+		</div>
+
+		<div class="grid-container">
+			<div class="d-table mb-2">
+				<div class="d-table-cell">
+					<div class="btn-group">
+						<button type="button" class="btn skill-tab" data-is-group="true"  onclick="SKILL_OBJ.tab(true);">그룹</button>
+						<button type="button" class="btn skill-tab" data-is-group="false" onclick="SKILL_OBJ.tab(false);">개별</button>
+					</div>
+					<span class="load-state" id="loading"></span>
+					<span class="load-state" id="done"></span>
+				</div>
+				<div class="d-table-cell text-right">
+					<span class="mr-2">총 <em id="skill-grid-count">0</em>건</span>
+					<button class="btn btn-white" onclick="SKILL_OBJ.excel();">엑셀요청</button>
+				</div>
+			</div>
+
+			<div class="grid-wrapper" id="skill-grid-wrapper"></div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

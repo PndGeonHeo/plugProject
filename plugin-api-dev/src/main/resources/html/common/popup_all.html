@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>실시간 모니터링</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/jquery-ui.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-ui.min.js"></script>
+
+	<script type="text/javascript" src="/webroot/ssoagent/js/bootstrap.bundle-4.5.2.min.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/muuri.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
+<style>
+	html, body {height:100%;}
+	.u-container {height:100vh;}
+	.u-container * {font-size:13px;font-weight:500;color:#444;}
+	button, .custom-select {height:25px !important;}
+
+	.modal {width:unset;height:unset;}
+	.modal-header {border:0;background-color:#efefef;padding:.5em 1em;}
+	.modal-dialog {max-width:none !important;margin:.5em 0 !important;}
+
+	.ui-icon,
+	.ui-widget-content .ui-icon {background-image:url(/webroot/ssoagent/images/icons8-resize-32.png)}
+</style>
+
+<script>
+	var filterInfo = ${filterInfo};
+	var idx = 0;
+
+	$(document).ready(function() {
+		if (!(filterInfo && filterInfo.length > 0)) {
+			return;
+		}
+
+		var agchart = filterInfo.filter(e => e.page == 'AGENT_TABLE' && e.type == 'CHART');
+		var route = filterInfo.filter(e => e.page == 'QUEUE' && e.type == 'ROUTE');
+		var monitor = filterInfo.filter(e => e.page == 'QUEUE' && e.type == 'MONITOR');
+
+		agchart.forEach((e, i) => {
+			var num = e.col.split('^')[0];
+			var value = e.col.split('^')[1];
+
+			if ($('#agchart-form'+num).length < 1)
+			$form = $('<form>', {name: 'agchart-form'+num, id: 'agchart-form'+num, action: '${fineServletURL}/uplus/agent/chart', method: 'GET'});
+		});
+
+
+
+
+		var group1 = ['20000023','20100872','20108079','20100880'];
+		var group2 = ['21000511','21000501','21000558'];
+
+		var queue1 = ['7600ffa8-a1f7-4d41-a676-36e6fccc7807'
+					  ,'9b7865fa-6181-406b-a79b-c2a437eca9e8'
+					  ,'c90b5e9f-e5d4-49b5-b9da-615a7bb06a8e'];
+
+		var queue2 = ['96f4f96c-405e-4040-84c4-69f9d4d36f45'
+					  ,'314dd9d2-2c36-42b3-8b62-0ce7ab4e6804'
+					  ,'9ad417b8-611d-4d12-98dd-5f021af7e282'];
+
+		//group1.forEach(e => $('#chart1 form').append($('<input>', {type: 'hidden', name: 'group', value: e})));
+		//group2.forEach(e => $('#chart2 form').append($('<input>', {type: 'hidden', name: 'group', value: e})));
+		//queue1.forEach(e => $('#qmonitor1 form').append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+		//queue2.forEach(e => $('#qmonitor2 form').append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+		//queue1.forEach(e => $('#route1 form').append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+		//queue2.forEach(e => $('#route2 form').append($('<input>', {type: 'hidden', name: 'queue', value: e})));
+		//
+		//$('#chart1 form').submit();
+		//$('#chart2 form').submit();
+		//$('#qmonitor1 form').submit();
+		//$('#qmonitor2 form').submit();
+		//$('#route1 form').submit();
+		//$('#route2 form').submit();
+
+		$('#modal-frame0').attr('src', '/webroot/decision/uplus/agent/chart?group=20108079&group=20100880');
+		$('#modal0').modal({
+			show: true,
+			backdrop: false
+		});
+		$('#modal0').draggable({
+			handle: ".modal-header"
+		});
+		$('#modal0 .modal-content').resizable({
+			handles:'se',
+			alsoResize: $('#modal-frame0')
+		});
+
+		$('#modal-frame1').attr('src', '/webroot/decision/uplus/agent/chart?group=20000023&group=20100872');
+		$('#modal1').modal({
+			show: true,
+			backdrop: false
+		});
+		$('#modal1').draggable({
+			handle: ".modal-header"
+		});
+		$('#modal1 .modal-content').resizable({
+			handles:'se',
+			alsoResize: $('#modal-frame1')
+		});
+	});
+</script>
+</head>
+<body>
+<div class="u-container">
+	<div class="modal" id="modal0" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header border-0">
+					<h5 class="modal-title">상담사현황</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<iframe name="modal-frame0" id="modal-frame0"></iframe>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal" id="modal1" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header border-0">
+					<h5 class="modal-title">상담사현황</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<iframe name="modal-frame1" id="modal-frame1"></iframe>
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

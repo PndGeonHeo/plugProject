@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>필터조회</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+<style>
+	.u-container {padding:20px 2rem;}
+	.btn {height:24px !important;padding:0 .75rem;}
+	.btn:not(.btn-white) {border:0;}
+
+	.tui-grid-tree-extra-content:not(.tui-grid-tree-button-expand):not(.tui-grid-tree-button-collapse) i {display:none;}
+</style>
+
+<script>
+	/* 필터 기본값 변경 */
+	function updateDefault(rowKey) {
+		var page = grid.getValue(rowKey, 'page');
+		var colNm = grid.getValue(rowKey, 'col_nm');
+		var defaultYn = grid.getValue(rowKey, 'default_yn');
+
+		$.ajax({
+			url         : fineServletURL + '/uplus/v2/multi/filter/default',
+			type        : 'POST',
+			async       : false,
+			contentType : 'application/json',
+			data        : JSON.stringify({
+				page: page,
+				colNm: colNm,
+				defaultYn: defaultYn == 'Y' ? 'N' : 'Y'
+			}),
+			success : function(res) {
+				if (res) {
+					BI.Msg.toast('필터 저장 성공');
+
+					if (defaultYn == 'N') {
+						grid.findRows(row => {
+							if (row.page == page) {
+								grid.setValue(row.rowKey, 'default_yn', 'N')
+							}
+						});
+						grid.setValue(rowKey, 'default_yn', 'Y');
+
+					} else {
+						grid.setValue(rowKey, 'default_yn', 'N');
+					}
+
+				} else {
+					BI.Msg.toast('필터 저장 실패');
+				}
+			},
+			error : function(request,status,error) {
+				BI.Msg.toast('필터 저장 실패');
+			}
+		});
+	}
+
+	/* 저장 */
+	function save() {
+		var updated = grid.getModifiedRows().updatedRows; // 이름변경
+		var deleted = grid.getModifiedRows().deletedRows; // 삭제
+
+		if (updated.length < 1 && deleted.length < 1) {
+			BI.Msg.toast('변경 사항이 없습니다');
+			return;
+		}
+
+		updated = updated.filter(row => row.col_nm != row.title).map(row => { return {userId: userId, page: row.page, updateValue: row.title, seqs: row.seq} });
+		deleted = deleted.filter(row => row.parent).map(row => { return {userId: userId, page: row.page, seqs: row.seq} });
+
+		$.ajax({
+			url         : fineServletURL + '/uplus/v2/multi/filter/manage',
+			type        : 'POST',
+			async       : false,
+			contentType : 'application/json',
+			data        : JSON.stringify({
+				updated: updated,
+				deleted: deleted
+			}),
+			success : function(res) {
+				if (res.result) {
+					BI.Msg.toast('필터 저장 성공');
+					location.reload();
+
+				} else {
+					BI.Msg.toast(res.message || '필터 저장 실패');
+				}
+			},
+			error : function(request,status,error) {
+				BI.Msg.toast('필터 저장 실패');
+			}
+		});
+	}
+</script>
+</head>
+<body>
+<div class="u-container">
+	<div class="mb-2 text-right">
+		<button type="button" class="btn btn-white" onclick="save();">저장</button>
+	</div>
+	<div id="grid-wrapper"></div>
+</div>
+
+<script>
+	var filter_data = ${filterData};
+	var filter_value = ${filterValue};
+
+	var treeData = [];
+
+	filter_data.forEach(f => {
+		if (f.page == 'POPUP' || f.type == 'THRESHOLD') {
+			return;
+		}
+
+		if (treeData.find(e => e.page == f.page && e.col_nm == f.col_nm)) {
+			return;
+		}
+
+		var data = {
+			title: f.col_nm,
+			page: f.page,
+			page_nm: f.page_nm,
+			col_nm: f.col_nm,
+			default_yn: f.default_yn,
+			parent: true,
+			_children: filter_data.filter(e => e.page == f.page && e.col_nm == f.col_nm)
+								  .map(e => {
+									  return {
+										  title: e.type_nm,
+										  type: e.type,
+										  seq: e.seq,
+										  col: e.col,
+										  _children: [{title: filter_value.filter(v => v.col_seq == e.seq).map(v => v.remark).join('<br>')}]
+									  }
+								  })
+		};
+
+		data.seq = data._children.map(e => e.seq);
+
+		data._children.forEach((e, i) => {
+			if (e.type == 'CHART_POSITION') {
+				var chart = data._children.find(a => (a.type == 'CHART_GROUP' || a.type == 'CHART_TEAM') && a.seq == e.col);
+				chart._children.push(...e._children);
+				data._children.splice(i, 1);
+			}
+		});
+
+		treeData.push(data);
+	});
+
+	var Grid = tui.Grid;
+	Grid.applyTheme('clean');
+	Grid.setLanguage('ko');
+
+	$(document).on('click', '#chk-all', function() {
+		$('.chk').prop('checked', $(this).prop('checked'));
+	});
+
+	$(document).on('click', '.chk', function() {
+		var checked = $('.chk:not(:checked)').length < 1;
+		$('#chk-all').prop('checked', checked);
+	});
+
+	class defaultRenderer {
+		constructor(props) {
+			this.el = document.createElement('div');
+			this.render(props);
+		}
+
+		getElement() {
+			return this.el;
+		}
+
+		render(props) {
+			var parent = props.grid.getValue(props.rowKey, 'parent');
+			if (parent) {
+				var $button = $('<button>', {class: 'btn', onclick: 'updateDefault(' + props.rowKey + ');'});
+
+				if (props.grid.getValue(props.rowKey, 'default_yn') == 'Y') {
+					$button.addClass('btn-primary');
+					$button.text('on');
+
+				} else {
+					$button.addClass('btn-clear');
+					$button.text('off');
+				}
+
+				$(this.el).addClass('tui-grid-cell-content');
+				$(this.el).html($button);
+			}
+		}
+	}
+
+	class deleteRenderer {
+		constructor(props) {
+			this.el = document.createElement('div');
+
+			var parent = props.grid.getValue(props.rowKey, 'parent');
+			if (parent) {
+				var $button = $('<button>', {class: 'btn btn-danger', onclick: 'grid.removeRow(' + props.rowKey + ');', text: '삭제'});
+
+				$(this.el).addClass('tui-grid-cell-content');
+				$(this.el).html($button);
+			}
+		}
+
+		getElement() {
+			return this.el;
+		}
+
+		render(props) {}
+	}
+
+	class titleEditor {
+		constructor(props) {
+			var el = document.createElement('input');
+			$(el).attr('type', 'text');
+			$(el).attr('maxlength', 30);
+			$(el).val(props.value);
+
+			this.el = el;
+		}
+
+		getElement() {
+			return this.el;
+		}
+
+		getValue() {
+			return this.el.value;
+		}
+
+		mounted() {
+			this.el.select();
+		}
+	}
+
+	grid = new Grid({
+		el: document.getElementById('grid-wrapper'),
+		usageStatistics: false,
+		scrollX: true,
+		scrollY: true,
+		bodyHeight: 730,
+		minBodyHeight: 50,
+		rowHeight: 'auto',
+		minRowHeight: 35,
+		copyOptions: {
+			useFormattedValue: true
+		},
+		header: {
+			height: 35,
+			align: 'left'
+		},
+		columns: [
+			{
+				header: '화면',
+				name: 'page_nm',
+				width: 300
+			},
+			{
+				header: '필터',
+				name: 'title',
+				editor: {
+					type: titleEditor,
+					options: {
+						maxLength: 30
+					}
+				}
+			},
+			{
+				header: '기본값',
+				name: 'default_yn',
+				width: 300,
+				renderer: {
+					type: defaultRenderer
+				}
+			},
+			{
+				width: 300,
+				renderer: {
+					type: deleteRenderer
+				}
+			}
+		],
+		treeColumnOptions: {
+			name: 'title'
+		},
+		contextMenu: null,
+		data: treeData
+	});
+
+	grid.on('editingStart', ev => {
+		if (!ev.instance.getValue(ev.rowKey, 'parent')) {
+			ev.stop();
+		}
+	});
+
+	grid.on('afterChange', ev => {
+		var changes = ev.changes.find(e => e.columnName == 'title');
+		if (changes) {
+			// 필터명 입력 여부 체크
+			if (!($.trim(changes.value))) {
+				ev.instance.setValue(changes.rowKey, 'title', changes.prevValue);
+			}
+
+			// 필터명 중복 체크
+			if (grid.getData().find(e => e.parent && e.page == grid.getRow(changes.rowKey).page && e.rowKey != changes.rowKey && $.trim(e.title) == $.trim(changes.value))) {
+				BI.Msg.toast('중복된 필터명입니다\n\n' + changes.value);
+				ev.instance.setValue(changes.rowKey, 'title', changes.prevValue);
+			}
+		}
+	});
+
+	var observer = new ResizeObserver(() => {
+		if (grid && grid.el) {
+			grid.refreshLayout();
+		}
+	});
+	observer.observe(document.querySelector('.u-container'));
+</script>
+</body>
+</html>

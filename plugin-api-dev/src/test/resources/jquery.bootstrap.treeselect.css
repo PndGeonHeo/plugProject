@@ -1,0 +1,4 @@
+.bts_dropdown ul{list-style:none;padding:0;width:100%;}.bts_dropdown ul li{border-top:1px dashed #EEE;padding-left:5%}.bts_dropdown ul li label{position:relative;padding:5px 20px;white-space:nowrap;width:93%;}.bts_dropdown ul li label input{position:absolute;left:0px;top:5px}.bts_dropdown>ul{max-height:289px;overflow:auto}.bts_dropdown>ul>li{border-top:1px solid #EEE}.bts_dropdown>ul>li:first-child{border-top:0}
+.caret-container {display:inline-block;width:7%;}
+.multiselect-container .multiselect-group.closed .dropdown-toggle::after {transform:rotate(-90deg);}
+/*# sourceMappingURL=jquery.bootstrap.treeselect.css.map */

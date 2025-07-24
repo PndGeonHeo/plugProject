@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>상담사현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
+	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+
+	<style>
+		html, body {height:100vh;}
+		#chart-container {height:100%;display:grid;align-items:center;justify-items:center;grid-template-columns:repeat(auto-fill, minmax(330px, 1fr));}
+		.chart {height:300px;width:320px;display:inline-flex;padding:5px 10px;border:1px solid #ddd;border-radius:10px;margin:7px;}
+	</style>
+</head>
+<body>
+	<div id="chart-container"></div>
+
+	<script>
+		var data = ${data};
+		var orgCds = data.map(e => e.org_cd);
+
+		data.forEach(e => {
+			$('#chart-container').append($('<div>', {class: 'chart', id: 'chart_' + e.org_cd}));
+			fnChart(e);
+		});
+
+		/* 차트 */
+		function fnChart(e) {
+			var dom = document.getElementById('chart_' + e.org_cd);
+			window['chart_' + e.org_cd] = echarts.init(dom);
+
+			var option = {
+				textStyle: {
+					fontFamily: 'LG Smart'
+				},
+				title: {
+					text: '{main|' + e.org_name + '}',
+					textStyle: {
+						rich: {
+							main: {
+								fontSize: 15,
+								fontWeight: '500',
+								backgroundColor: '#efefef',
+								align: 'center',
+								width: 300,
+								height: 30,
+								borderRadius: 5
+							}
+						}
+					},
+					subtext: '[' + e.org_cd + '] 로그인 ' + toNumber(e.login_cnt + e.call_cnt),
+					subtextStyle: {
+						fontSize: 15,
+						fontWeight: '500'
+					},
+					left: 'center'
+				},
+				tooltip: {
+					trigger: 'item'
+				},
+				legend: {
+					orient: 'horizontal',
+					left: 'center',
+					bottom: 10,
+					itemWidth: 10
+				},
+				series: [
+					{
+						type: 'pie',
+						radius: '90%',
+						top: 'middle',
+						emphasis: {
+							itemStyle: {
+								shadowBlur: 10,
+								shadowOffsetX: 0,
+								shadowColor: 'rgba(0, 0, 0, 0.5)'
+							}
+						},
+						label: {
+							formatter: '{b} {c}',
+							position: 'outer',
+							alignTo: 'labelLine',
+							bleedMargin: 0,
+							distanceToLabelLine: 0,
+							overflow: 'break'
+						},
+						data: [
+							{name: '로그인', value: e.login_cnt},
+							{name: '통화중', value: e.call_cnt},
+							{name: '로그아웃', value: e.logout_cnt, itemStyle: {color: '#eee'}}
+						]
+					}
+				]
+			};
+
+			if (option && typeof option === 'object') {
+			  window['chart_' + e.org_cd].setOption(option);
+			}
+
+			window.addEventListener('resize', window['chart_' + e.org_cd].resize);
+		}
+
+		/* 팝업 오픈 시 조회 조건 저장 (필터저장용) */
+		opener.popupCols.push(orgCds.join());
+
+		/* 팝업 닫을 시 조회 조건 삭제 (필터저장용) */
+		$(window).on('beforeunload', function() {
+			opener.popupCols = opener.popupCols.filter(e => e != orgCds.join());
+		});
+	</script>
+</body>
+</html>

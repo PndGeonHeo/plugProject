@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>라우트 현황</title>
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery.cookie.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm-2.0.js"></script>
+
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
+<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+
+<style>
+	.u-container {padding:.75em;display:grid;align-items:center;}
+
+	.d-grid {align-items:center;grid-gap:.5em;}
+	.d-grid div {padding:.6em;border-radius:6px;background-color:#f5f5f5;overflow:hidden;}
+
+	#main-grid {display:inline-grid;grid-template-columns:repeat(3, 1fr);height:100%;flex:1;grid-gap:6px;}
+
+	#qlist {height:100%;position:relative;width:20%;border-radius:6px;background-color:#f5f5f5;flex-direction:column;}
+	#qlist > div:first-child {text-overflow:ellipsis;white-space:nowrap;padding:1.25em .75em;}
+	#qlist p {line-height:1.7em;white-space:nowrap;font-size:.95em;}
+	#qlist .scroll-box {width:100%;height:100%;overflow-y:auto;padding:.75em;}
+
+	#sub-grid1 {grid-template-columns:repeat(4, 1fr);grid-column:1/5;height:100%;}
+	#sub-grid1 > div {background-color:#faf0e6;height:100%;padding:.75em 1em;display:table;border-collapse:separate;border-spacing:0 .5em;}
+	#sub-grid1 p:nth-child(2) {text-align:right;font-size:1.5em;font-weight:700;}
+	#sub-grid1 .value {font-size:1.8em;font-weight:700;margin-right:3px;}
+
+	#sub-grid2 {grid-template-columns:repeat(5, 1fr);grid-column:1/5;height:100%;}
+	#sub-grid2 > div {height:100%;padding:.75em 1em;display:table;border-collapse:separate;border-spacing:0 .5em;}
+	#sub-grid2 .value {text-align:right;font-size:1.75em;font-weight:600;}
+
+	#sub-grid1 p, #sub-grid2 p {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:50%;display:table-row;}
+
+	#sub-grid1 > p.data-load {color:transparent;}
+	#sub-grid1 > p.data-load > em {content:'';display:inline-block;width:24px;height:24px;animation:6s linear 0s infinite normal none running rotate_loading;background:url(${fineServletURL}/resources?path=/images/icons8-load-24.png);}
+	#sub-grid2 > p.data-load {content:'';display:inline-block;width:24px;height:24px;animation:6s linear 0s infinite normal none running rotate_loading;background:url(${fineServletURL}/resources?path=/images/icons8-load-24.png);color:transparent;float:right;}
+
+	.collapse-button-x {border:0;}
+
+	@media screen and (min-width: 730px), screen and (min-height: 200px) {
+		#sub-grid1 p:nth-child(2) {font-size:1.5em;}
+		#sub-grid2 .value {font-size:1.75em;}
+	}
+
+	@media screen and (max-width: 730px), screen and (max-height: 200px) {
+		#sub-grid1 p:nth-child(2) {font-size:1em;}
+		#sub-grid2 .value {font-size:1.4em;}
+	}
+</style>
+</head>
+<body>
+<div class="u-container d-flex">
+	<div class="collapse-content-x active d-flex" id="qlist">
+		<div class="shadow-sm">조회목록</div>
+		<div class="scroll-box"></div>
+	</div>
+	<div class="collapse-button-x active" data-target="#qlist" data-func="collapse"></div>
+
+	<div class="load-data" id="main-grid">
+		<div class="d-grid" id="sub-grid1">
+			<div>
+				<p>응답률 (%)</p>
+				<p class="data-load"><em class="value" id="acdpt">0.0</em>%</p>
+			</div>
+			<div>
+				<p>서비스레벨 (%) / 35초</p>
+				<p class="data-load"><em class="value" id="sl25">0.0</em>%</p>
+			</div>
+			<div>
+				<p>서비스레벨 (%) / 45초</p>
+				<p class="data-load"><em class="value" id="sl35">0.0</em>%</p>
+			</div>
+			<div>
+				<p>대기호</p>
+				<p class="data-load"><em class="value" id="cnt205">0</em></p>
+			</div>
+		</div>
+
+		<div class="d-grid" id="sub-grid2">
+			<div>
+				<p>인입호수</p>
+				<p class="value data-load" id="cnt211">0</p>
+			</div>
+			<div>
+				<p>응답호수</p>
+				<p class="value data-load" id="cnt212">0</p>
+			</div>
+			<div>
+				<p>포기호수</p>
+				<p class="value data-load" id="abncalls">0</p>
+			</div>
+			<div>
+				<p>넌서비스호수</p>
+				<p class="value data-load" id="cnt231">0</p>
+			</div>
+			<div>
+				<p>플로우아웃</p>
+				<p class="value data-load" id="cnt230">0</p>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	var isAlert = '${alert}';
+	var qInfo = ${qInfo};
+	var winker;
+	var wProp;
+	var wStat = wStatInit();
+
+	// 좌측 조회목록 표기
+	qInfo.forEach(e => $('#qlist .scroll-box').append('<p>' + e.name + '</p>'));
+
+	// 조회목록 펼침 여부
+	if (${collapse}) {
+		$('.collapse-content-x').removeClass('active');
+		$('.collapse-button-x').removeClass('active');
+	}
+
+	wsConnect();
+
+	function wStatInit() {
+		return {
+			205: {},  // 대기호
+			211: {},  // 인입호
+			212: {},  // 응답호
+			213: {},  // 응답호-구간1
+			214: {},  // 응답호-구간2
+			215: {},  // 응답호-구간3
+			216: {},  // 응답호-구간4
+			221: {},  // 포기호
+			230: {},  // 플로우아웃
+			231: {},  // 넌서비스
+			abncalls: {} // 포기호+넌서비스
+		};
+	}
+
+	/* websocket connection */
+	function wsConnect() {
+		if (!(winker && winker.inactiveCloseFlag)) {
+			onLoading(true);
+		}
+
+		wStat = wStatInit();
+
+		try {
+			if (!wProp) {
+				wProp = getWProperties();
+			}
+
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError(isAlert);
+		}
+	}
+
+	var req_dbID = [];
+	var dbID = qInfo.map(e => e.id);
+	var statID = [205, 212, 213, 214, 215, 216, 221, 230, 231].join(STA_DIM); // 대기호, 응답호, 응답호-구간1, 응답호-구간2, 응답호-구간3, 응답호-구간4, 포기호, 플로우아웃, 넌서비스
+																			  // 인입호 = 응답호(212) + 포기호(221) + 넌서비스(231) 이므로 별도 요청 X
+
+	var dataInitFlag = false;
+
+	/* websocket request open */
+	function wsOpen() {
+		wStat = wStatInit();
+
+		// socket open
+		req_dbID = openStat(winker, dbID, statID);
+
+		dataInitFlag = false;
+	}
+
+	/* websocket callback */
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		// onopen
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(function() {
+				wsOpen();
+			}, 1000);
+		}
+
+		// onmessage
+		if (eventId == WMessageType.EventStatInfo) {
+			setData(objectDBId, objectType, statId, statVal);
+		}
+
+		// onerror
+		if (eventId == WMessageType.EventError) {
+			wsError(isAlert);
+		}
+	}
+
+	/* 화면단 데이터 갱신 */
+	function setData(dbID, type, statId, statVal) {
+		wStat[statId][dbID] = toNumber(statVal);
+
+		// 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231)
+		if (statId == '212' || statId == '221' || statId == '231') {
+			wStat['211'][dbID] = toNumber(wStat['212'][dbID] + wStat['221'][dbID] + wStat['231'][dbID]);
+		}
+
+		// 포기호 = 포기호(221) + 넌서비스호(231)
+		if (statId == '221' || statId == '231') {
+			wStat['abncalls'][dbID] = toNumber(wStat['221'][dbID] + wStat['231'][dbID]);
+		}
+
+		if (!dataInitFlag && Object.values(wStat).every(e => Object.keys(e).length >= window.dbID.length)) {
+			dataInitFlag = true;
+			onLoading(false);
+		}
+
+		if (dataInitFlag) {
+			var cnt211 = Object.values(wStat['211']).reduce((a, b) => a + b, 0); // 인입호
+			var cnt212 = Object.values(wStat['212']).reduce((a, b) => a + b, 0); // 응답호
+			var cnt213 = Object.values(wStat['213']).reduce((a, b) => a + b, 0); // 응답호-구간1
+			var cnt214 = Object.values(wStat['214']).reduce((a, b) => a + b, 0); // 응답호-구간2
+			var cnt215 = Object.values(wStat['215']).reduce((a, b) => a + b, 0); // 응답호-구간3
+			var cnt216 = Object.values(wStat['216']).reduce((a, b) => a + b, 0); // 응답호-구간4
+			var abncalls = Object.values(wStat['abncalls']).reduce((a, b) => a + b, 0); // 포기호
+			var acdcalls25 = cnt213 + cnt214 + cnt215; // 25초이내응답호
+			var acdcalls35 = cnt213 + cnt214 + cnt215 + cnt216; // 35초이내응답호
+
+			Object.keys(wStat).forEach(key => {
+				var stat = wStat[key];
+				$('#cnt' + key).text(Object.values(stat).reduce((a, b) => a + b, 0).toLocaleString());
+			});
+
+			$('#abncalls').text(toNumber(abncalls).toLocaleString());       // 포기호 (포기호+넌서비스호)
+			$('#acdpt').text(toNumber((cnt212 / cnt211) * 100).toFixed(1)); // 응답률 (응답호/인입호*100)
+			$('#sl25').text(toNumber((acdcalls25 / cnt211) * 100).toFixed(1));  // 서비스레벨 (25초이내응답호/인입호*100)
+			$('#sl35').text(toNumber((acdcalls35 / cnt211) * 100).toFixed(1));  // 서비스레벨 (35초이내응답호/인입호*100)
+		}
+	}
+
+	/* 조회목록 collapse callback */
+	function collapse() {
+		if (opener && opener.popupCols) {
+			opener.popupCols.ROUTE.find(e => e.popupName == this.name).collapse = !$('.collapse-content-x').hasClass('active');
+		}
+
+		$(parent.document).find($(this.frameElement)).parent().attr('data-collapse', !$('.collapse-content-x').hasClass('active'));
+	}
+
+	/* 페이지 오픈 여부에 따른 통계 요청 처리 */
+	document.addEventListener('visibilitychange', function() {
+		var active = !document.hidden && $('.u-container').is(':visible');
+		wsCheckState(winker, active);
+	});
+
+	var ft = {
+		value: ${queue}.join(),
+		collapse: ${collapse},
+		popupName: this.name
+	};
+
+	/* 팝업 오픈 시 */
+	$(window).on('load', function() {
+		if (opener && opener.popupCols) {
+			opener.popupCols.ROUTE.push(ft); // 조회 조건 저장 (필터저장용)
+		}
+		setPopupCount('ROUTE', 'OPEN'); // 현재 팝업 개수 갱신 (cookie)
+	});
+
+	/* 팝업 닫을 시 */
+	$(window).on('beforeunload', function() {
+		if (opener && opener.popupCols) {
+			opener.popupCols.ROUTE = opener.popupCols.ROUTE.filter(e => e.value != ft.value); // 조회 조건 삭제 (필터저장용)
+		}
+		setPopupCount('ROUTE', 'CLOSE'); // 현재 팝업 개수 갱신 (cookie)
+	});
+</script>
+</body>
+</html>
