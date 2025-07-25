@@ -1,6 +1,6 @@
 package com.controller;
 
-import com.Bean.*;
+import com.Bean.ApiResponse;
 import com.common.*;
 import com.fr.data.NetworkHelper;
 import com.fr.decision.authority.data.User;
@@ -20,7 +20,6 @@ import com.fr.third.springframework.http.MediaType;
 import com.fr.third.springframework.http.ResponseEntity;
 import com.fr.third.springframework.stereotype.Controller;
 import com.fr.third.springframework.web.bind.annotation.*;
-import com.google.gson.JsonElement;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

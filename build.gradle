@@ -10,6 +10,10 @@ group = 'com.fr.plugin'
 version = '11.0'
 
 repositories {
+    flatDir {
+        dirs 'libs'
+    }
+
     mavenLocal()
     maven {
         url = uri('http://mvn.fanruan.com/repository/maven-public')
@@ -18,9 +22,7 @@ repositories {
     maven {
         url = uri('http://repo.maven.apache.org/maven2')
     }
-    flatDir {
-        dirs 'libs'
-    }
+
 }
 
 task install(type: Copy) {
@@ -37,9 +39,10 @@ allprojects {
     apply plugin: 'java'
 
     dependencies {
-        implementation fileTree(dir: 'libs', include: ['*.jar'])
+
         implementation 'com.install4j:install4j-runtime:8.0.4'
         implementation 'com.fr.intelligence:fine-swift:' + fineVersion
+        implementation fileTree(dir: 'libs', include: ['*.jar'])
         implementation 'io.socket:socket.io-client:0.7.0'
         implementation 'org.aspectj:aspectjrt:1.6.9'
         implementation 'org.swingexplorer:swexpl:2.0'
@@ -61,3 +64,7 @@ dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 }
 sourceCompatibility = '1.8'
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

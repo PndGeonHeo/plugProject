@@ -116,5 +116,9 @@ dependencies {
     //使用本地jar
     implementation  fileTree(dir: 'lib', include: ['**/*.jar'])
     implementation  fileTree(dir: libPath, include: ['**/*.jar'])
+    implementation fileTree(dir: "${rootDir}/libs", include: ['*.jar'])
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
