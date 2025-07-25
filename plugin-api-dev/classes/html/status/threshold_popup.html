@@ -9,19 +9,19 @@
 	#modal-threshold input[type="number"]::-webkit-inner-spin-button {-webkit-appearance:none;margin:0;}
 
 	#modal-threshold .bgcolor {display:inline-block;width:1em;height:1em;border-radius:1em;vertical-align:middle;margin:0 5px 1px 0;}
-	#WaitForNextCall .bgcolor {background-color:#b3b366;}
-	#CallInbound .bgcolor {background-color:#6666e1;}
-	#CallOutbound .bgcolor {background-color:#f36666;}
-	#AfterCallWork .bgcolor {background-color:#f7dc6f;}
-	#NotReadyForNextCall .bgcolor {background-color:#6ec4c8;}
+	[data-col="3"] .bgcolor {background-color:#b3b366;}
+	[data-col="15"] .bgcolor {background-color:#6666e1;}
+	[data-col="14"] .bgcolor {background-color:#f36666;}
+	[data-col="5"] .bgcolor {background-color:#f7dc6f;}
+	[data-col="4"] .bgcolor {background-color:#6ec4c8;}
 </style>
 
 <script>
 	$(document).ready(function() {
-		// 기존 저장된 데이터 처리
+		// 기존 저장된 데이터 노출
 		var data = ${data};
 		data.forEach(e => {
-			var $tr = $('#' + e.col);
+			var $tr = $('[data-col="' + e.col + '"]');
 			$tr.find('.use-yn').prop('checked', true);
 
 			var values = getHis(e.value).split(':');
@@ -31,10 +31,13 @@
 			});
 		});
 
+		// 사용여부 checkbox 이벤트 (check 여부에 따른 text 입력란 제어)
 		$('#modal-threshold .use-yn').on('change', function() {
-			$(this).closest('tr').find('[type="number"]').prop('disabled', !$(this).prop('checked')).val('');
+			var isDisabled = !$(this).prop('checked');
+			$(this).closest('tr').find('[type="number"]').prop('disabled', isDisabled).val('');
 		});
 
+		// validation
 		$('#modal-threshold [type="number"]').on('blur', function() {
 			validate($(this));
 		});
@@ -62,7 +65,9 @@
 			}
 		}
 
-		if (n.length < 2 && Number(n) < 10) $input.val('0' + n);
+		if (n.length < 2 && Number(n) < 10) {
+			$input.val('0' + n);
+		}
 
 		return n;
 	}
@@ -88,7 +93,7 @@
 				return false;
 			}
 
-			var col = $tr.attr('id');
+			var col = $tr.attr('data-col');
 			data[col] = s;
 		});
 
@@ -108,6 +113,7 @@
 			});
 		});
 
+		// 저장 성공 시 조회 화면 새로고침
 		if (updateFilter([params])) {
 			ft_threshold = data;
 
@@ -129,12 +135,12 @@
 </div>
 <div class="modal-body">
 	<table class="table table-bordered text-center">
-		<tr>
+		<tr height="40">
 			<th>상태</th>
 			<th>임계치</th>
 			<th>사용여부</th>
 		</tr>
-		<tr id="WaitForNextCall">
+		<tr data-col="3">
 			<td class="text-left"><span class="bgcolor"></span>대기</td>
 			<td>
 				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
@@ -143,7 +149,7 @@
 			</td>
 			<td><input type="checkbox" class="use-yn"></td>
 		</tr>
-		<tr id="CallInbound">
+		<tr data-col="15">
 			<td class="text-left"><span class="bgcolor"></span>IB</td>
 			<td>
 				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
@@ -152,7 +158,7 @@
 			</td>
 			<td><input type="checkbox" class="use-yn"></td>
 		</tr>
-		<tr id="CallOutbound">
+		<tr data-col="14">
 			<td class="text-left"><span class="bgcolor"></span>OB</td>
 			<td>
 				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
@@ -161,7 +167,7 @@
 			</td>
 			<td><input type="checkbox" class="use-yn"></td>
 		</tr>
-		<tr id="AfterCallWork">
+		<tr data-col="5">
 			<td class="text-left"><span class="bgcolor"></span>후처리</td>
 			<td>
 				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :
@@ -170,7 +176,7 @@
 			</td>
 			<td><input type="checkbox" class="use-yn"></td>
 		</tr>
-		<tr id="NotReadyForNextCall">
+		<tr data-col="4">
 			<td class="text-left"><span class="bgcolor"></span>이석</td>
 			<td>
 				<input type="number" class="form-control" placeholder="23" size="2" maxlength="2" min="0" max="23" disabled> :

@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <title>큐/스킬 현황</title>
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-pagination.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
 
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/xlsx.full.min.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-pagination.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/tui-grid.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery.cookie.js"></script>
 
+	<script type="text/javascript" src="/webroot/ssoagent/js/bootstrap.bundle-4.5.2.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/xlsx.full.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/tui-pagination.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/tui-grid.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/treeselectjs.umd.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
 <style>
 	html, body {height:100%;}
 	.u-container {height:100vh;}
@@ -44,8 +45,8 @@
 
 	.d-table {width:100%;}
 
-	#loading {display:inline-block;background:url(/webroot/images/icons8-load-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;animation:6s linear 0s infinite normal none running rotate_image;transform-origin:50% 50%;margin-left:5px;}
-	#done {display:inline-block;background:url(/webroot/images/icons8-done-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;margin-left:5px;}
+	#loading {display:inline-block;background:url(/webroot/ssoagent/images/icons8-load-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;animation:6s linear 0s infinite normal none running rotate_image;transform-origin:50% 50%;margin-left:5px;}
+	#done {display:inline-block;background:url(/webroot/ssoagent/images/icons8-done-24.png) no-repeat;width:24px;height:24px;vertical-align:middle;margin-left:5px;}
 
 	@keyframes rotate_image {
 		100% {
@@ -68,7 +69,7 @@
 	$(document).ready(function() {
 		// 큐, 스킬 각 영역 html 별도 분리
 		$('#queue-container').load('${fineServletURL}/uplus/skill/queue');
-		$('#skill-container').load('${fineServletURL}/uplus/skill');
+		$('#skill-container').load('${fineServletURL}/uplus/skill?type=${type}');
 	});
 </script>
 </head>

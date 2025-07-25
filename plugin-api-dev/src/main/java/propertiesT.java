@@ -1,4 +1,4 @@
-import com.common.CommonJsonUtil;
+import com.common.develop.CommonJsonUtil;
 import com.fr.decision.authority.data.User;
 import com.fr.decision.service.DecisionServiceManager;
 import com.fr.decision.service.authority.DecisionUserServiceProvider;

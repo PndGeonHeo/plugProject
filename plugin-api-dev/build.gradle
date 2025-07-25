@@ -1,4 +1,6 @@
+
 apply plugin: 'java'
+
 
 ext {
     /**
@@ -11,7 +13,7 @@ ext {
     /**
      * 是否对插件的class进行加密保护，防止反编译
      */
-    guard = true
+    guard = false
 
     def pluginInfo = getPluginInfo()
     pluginPre = "fine-plugin"
@@ -22,7 +24,7 @@ ext {
 }
 
 group = 'com.fr.plugin'
-version = '11.0'
+version = '10.0'
 sourceCompatibility = '8'
 
 sourceSets {

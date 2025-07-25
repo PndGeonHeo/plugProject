@@ -64,6 +64,7 @@ table {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
+    z-index: 20;
 }
 .onloading::after {
     content: '';
@@ -72,6 +73,9 @@ table {
     height: 24px;
     animation: 6s linear 0s infinite normal none running rotate_loading;
     background: url(/webroot/ssoagent/images/icons8-load-24.png);
+}
+.onloading + .load-data {
+    opacity: .5;
 }
 @keyframes rotate_loading {
     100% {

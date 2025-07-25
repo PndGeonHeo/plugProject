@@ -1,0 +1,9 @@
+.bi-label.bi-border-top.error.bi-text {
+    margin:auto; color:#DB4455;
+    /*box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .25), 0 3px 10px 5px rgba(0, 0, 0, 0.05);*/
+ }
+
+.fadeup-animation {
+    margin-bottom:30px;
+}
+

@@ -7,3 +7,8 @@
 .treeselect-input__tags-element {margin-right: 5px;}
 .treeselect-input__clear svg {margin-top:.15em;}
 input.treeselect-input__edit::placeholder {color:unset;letter-spacing:-0.025em;}
+.treeselect--disabled {background-color:#efefef !important;}
+.treeselect--disabled * {background-color:inherit;}
+.treeselect--disabled .treeselect-input__tags * {color:#666;}
+.treeselect--disabled .treeselect-input__operators,
+.treeselect--disabled .treeselect-input__tags-cross {display:none;}

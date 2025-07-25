@@ -12,8 +12,8 @@
     [2025-01-23]AES 복호화 추가<br/>
 ]]></change-notes>
     <main-package>com.controller</main-package>
-    <function-recorder class="com.controller.ControllerRegister"/>
+    <function-recorder class="com.controller.develop.ControllerRegister"/>
     <extra-decision>
-        <ControllerRegisterProvider class="com.controller.ControllerRegister"/>
+        <ControllerRegisterProvider class="com.controller.develop.ControllerRegister"/>
     </extra-decision>
 </plugin>

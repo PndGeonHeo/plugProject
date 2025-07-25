@@ -6,9 +6,9 @@
 	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
 	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
 
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/echarts.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
 
 	<style>
 		html, body {height:100vh;}
@@ -52,7 +52,7 @@
 							}
 						}
 					},
-					subtext: '로그인 ' + e.login_cnt,
+					subtext: '[' + e.org_cd + '] 로그인 ' + toNumber(e.login_cnt + e.call_cnt),
 					subtextStyle: {
 						fontSize: 15,
 						fontWeight: '500'
@@ -90,6 +90,7 @@
 						},
 						data: [
 							{name: '로그인', value: e.login_cnt},
+							{name: '통화중', value: e.call_cnt},
 							{name: '로그아웃', value: e.logout_cnt, itemStyle: {color: '#eee'}}
 						]
 					}
@@ -103,10 +104,10 @@
 			window.addEventListener('resize', window['chart_' + e.org_cd].resize);
 		}
 
-		/* 필터 저장용 */
-		if (!opener.popupCols) opener.popupCols = [];
+		/* 팝업 오픈 시 조회 조건 저장 (필터저장용) */
 		opener.popupCols.push(orgCds.join());
 
+		/* 팝업 닫을 시 조회 조건 삭제 (필터저장용) */
 		$(window).on('beforeunload', function() {
 			opener.popupCols = opener.popupCols.filter(e => e != orgCds.join());
 		});

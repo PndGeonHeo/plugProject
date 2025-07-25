@@ -1,209 +1,501 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8" />
-	<title>큐모니터</title>
-	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
-	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+   <meta charset="utf-8" />
+   <title>큐모니터</title>
+   <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+   <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+   <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/tui-grid.css" />
 
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/echarts.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/jquery.cookie.js"></script>
 
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
-	<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/echarts.js?v=${timestamp}"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
 
-	<style>
-		html, body {height:100vh;}
-		body {padding:.5rem;}
-		#chart-container {height:100%;display:grid;align-items:center;justify-items:center;}
-		#title {width:100%;padding:.5rem;font-size:1.2em;font-weight:500;background-color:#efefef;border-radius:6px;}
-		#chart {height:250px;width:100%;}
-	</style>
+   <script type="text/javascript" src="/webroot/ssoagent/js/bytebuffer.js?v=${timestamp}"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/winker_const.js?v=${timestamp}"></script>
+   <script type="text/javascript" src="/webroot/ssoagent/js/winker_api.js?v=${timestamp}"></script>
+
+   <script type="text/javascript" src="/webroot/ssoagent/js/tui-grid.js?v=${timestamp}"></script>
+
+   <style>
+        html, body {height:100vh;}
+        body {padding:.5rem;}
+        #chart-container {height:100%;display:grid;align-items:center;justify-items:center;}
+        #chart-container .d-flex {width:100%;}
+        #chart {height:260px;width:30%;}
+        #grid-wrapper {width:70%;font-weight:500;}
+
+        .tui-grid-cell[data-sec="1"] {background-color:#66bd63;}
+        .tui-grid-cell[data-sec="2"] {background-color:#a6d96a;}
+        .tui-grid-cell[data-sec="3"] {background-color:#d9ef8b;}
+        .tui-grid-cell[data-sec="4"] {background-color:#fee08b;}
+        .tui-grid-cell[data-sec="5"] {background-color:#fdae61;}
+        .tui-grid-cell[data-sec="6"] {background-color:#f46d43;}
+    </style>
 </head>
 <body class="u-container">
-	<span class="onloading" style="display:none;"></span>
+<div id="chart-container" class="load-data">
+   <div class="d-flex">
+      <div id="chart"></div>
+      <div id="grid-wrapper"></div>
+   </div>
+</div>
+<script>
+    var qInfo = ${qInfo}; // 큐정보
+    var qids = qInfo.map(e => e.id);
+    var wStat = {};
+    var wProp;
+    var winker;
+    var chart;
+    var timer;
+    var grid;
 
-	<div id="chart-container" class="load-data">
-		<div id="title" class="text-center mb-2">큐모니터</div>
-		<div id="chart"></div>
-	</div>
-	<script>
-		var qInfo = {};
-		var wStat = {};
+    fnChart();   // 차트 초기 셋팅
+    wsConnect(); // websocket
 
-		${qInfo}.forEach(e => {
-			qInfo[e.id] = e.group;
-			wStat[e.group] = {
-				205: {}, // 대기호
-				206: {}  // 최대대기시간
-			};
-		});
+    /* 차트 초기 셋팅 */
+    function fnChart(c, v) {
+        chart = echarts.init(document.getElementById('chart'));
 
-		var winker;
-		var wProp;
-		var chart;
+        // 차트 고정 옵션
+        var option = {
+            textStyle: {
+                fontFamily: 'LG Smart'
+            },
+            grid: {
+                top: 10,
+                bottom: 10,
+                left: 10,
+                containLabel: true
+            },
+            xAxis: {
+                minInterval: 1
+            },
+            yAxis: [
+                {
+                    type: 'category',
+                    inverse: true,
+                    data: [
+                        '1~10초', '11~20초', '21~30초', '31~40초', '41~50초', '51초이상'
+                    ]
+                }
+            ],
+            series: {
+                type: 'bar',
+                label: {
+                    show: true,
+                    fontWeight: 500
+                }
+            }
+        };
 
-		fnChart();
-		wsConnect();
+        chart.setOption(option);
 
-		function wsConnect() {
-			onLoading(true);
+        window.onresize = function() {
+            chart.resize();
+        };
+    }
 
-			try {
-				if (!wProp) wProp = getWProperties();
+    /* websocket connection */
+    function wsConnect() {
+        if (!(winker && winker.inactiveCloseFlag)) {
+            onLoading(true);
+        }
 
-				winker = new winkWebSocket();
-				var eventCallback = wsCallback;
-				var logCallback   = null;
-				var consoleFlag   = true;
+        try {
+            if (!wProp) {
+                wProp = getWProperties();
+            }
 
-				winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+            winker = new winkWebSocket();
+            var eventCallback = wsCallback;
+            var logCallback   = null;
 
-			} catch (e) {
-				wsError();
-			}
-		}
+            winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
 
-		function wsError() {
-			onLoading(false);
-			alert('통신 연결 실패', {level: 'error'});
-		}
+        } catch (e) {
+            wsError(true);
+        }
+    }
 
-		function wsOpen() {
-			var dbIDs = Object.keys(qInfo).join(STA_DIM);
-			var statIDs = [205, 206].join(STA_DIM);
+    /* websocket request open */
+    function wsOpen() {
+        if (grid) {
+            grid.clear();
+        }
 
-			// socket open
-			winker.wOpenStatExt(dbIDs, statIDs);
+        wStat = {};
 
-			onLoading(false);
-		}
+       // socket open
+       //openStat(winker, qids, '207'); // 207: 대기호정보
+       qids.forEach(e => winker.wOpenStat(e, '207')); // fortest
 
-		function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
-			if (eventId == WMessageType.EventServerConnected) {
-				setTimeout(function() {
-					wsOpen();
-				}, 1000);
-			}
+       onLoading(false);
+    }
 
-			if (eventId == WMessageType.EventStatInfo) {
-				setData(objectDBId, objectType, statId, statVal);
-			}
+    /* websocket callback */
+    function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+        // onopen
+        if (eventId == WMessageType.EventServerConnected) {
+            setTimeout(function() {
+                wsOpen();
+            }, 1000);
+        }
 
-			// onerror
-			if (eventId == WMessageType.EventError) {
-				wsError();
-			}
-		}
+        // onmessage
+        if (eventId == WMessageType.EventStatInfo) {
+            setData(objectDBId, objectType, statId, statVal);
+        }
 
-		/*
-			websocket callback function
-		*/
-		function setData(dbID, type, statId, statVal) {
-			var group = qInfo[dbID];
-			wStat[group][statId][dbID] = toNumber(statVal);
+        // onerror
+        if (eventId == WMessageType.EventError) {
+            wsError(true);
+        }
+    }
 
-			var inqueue = [];		// 대기호
-			var maxwaittime = [];	// 최대대기시간
+    /* websocket onmessage callback - grid 갱신 */
+    function setData(dbID, type, statId, statVal) {
+        /*
+            [이벤트 명세]
+            - Q: 대기
+            - D: 분배
+            - A: 포기
+            - P: 전환
 
-			Object.values(wStat).forEach(stat => {
-				inqueue.push(Object.values(stat['205']).reduce((a, b) => a + b, 0));
-				maxwaittime.push(Object.values(stat['206']).sort((a, b) => b - a)[0]);
-			});
+            대기시작(Q), 대기종료(D/A), 호전환완료(P) 시점에 전송
+        */
+        var stats = statVal.split(STA_DIM); // 이벤트(Q/D/A/P), 큐ID, 스킬ID, 스킬명, convID, ANI, 우선순위, 대기시작시간(UTC초), 이전convID(호전환시)
+        var ev = stats[0];
+        var convID = stats[4];
+        var p_convID = stats[8];
 
-			chart.setOption(
-				{
-					tooltip: {
-						trigger: 'axis',
-						axisPointer: {
-							type: 'shadow'
-						},
-						formatter: data => {
-							var e = data[0];
-							var time = toNumber(e.dimensionNames[e.dataIndex]) < 1 ? '-' : getHis(toNumber(e.dimensionNames[e.dataIndex]));
-							return e.name + '<br>' + e.marker + e.seriesName + ' &nbsp; '
-								 + '<span style="font-weight:bold">' + e.data + '</span>' + '<br>최대대기시간 &nbsp; '
-								 + '<span style="font-weight:bold">' + time + '</span>';
-						}
-					},
-					series: {
-						name: '대기호',
-						type: 'bar',
-						label: {
-							formatter: e => {
-								var time = toNumber(e.dimensionNames[e.dataIndex]) < 1 ? '' : getHis(toNumber(e.dimensionNames[e.dataIndex]));
-								return e.data + '\n{subLabel|' + time + '}'
-							},
-							show: true,
-							align: 'center',
-							textStyle: {
-								fontWeight: 'bold',
-								fontSize: 15,
-								rich: {
-									subLabel: {
-										fontWeight: 'normal',
-										fontStyle: 'italic',
-										height: 25
-									}
-								}
-							}
-						},
-						emphasis: {
-							focus: 'series'
-						},
-						data: inqueue,
-						dimensions: maxwaittime
-					}
-				}
-			);
-		}
+        if (ev == 'D' || ev == 'A') {
+            // 대기종료
+            grid.findRows(function(row) {
+                if (row['var4'] == convID) {
+                    grid.removeRow(row.rowKey); // 제거
+                }
+                return row;
+            });
 
-		function fnChart(c, v) {
-			var dom = document.getElementById('chart');
-			chart = echarts.init(dom);
+            delete wStat[convID];
+            updateChart();
 
-			var option = {
-				textStyle: {
-					fontFamily: 'LG Smart'
-				},
-				grid: {
-					top: 20,
-					bottom: 10,
-					containLabel: true
-				},
-				xAxis: [
-					{
-						axisLabel: {
-							rotate: 60
-						},
-						type: 'category',
-						data: Object.keys(wStat)
-					}
-				],
-				yAxis: [
-					{
-						type: 'value'
-					}
-				]
-			};
+            if (!timer) {
+                setTimer();
+            }
 
-			if (option && typeof option === 'object') {
-				chart.setOption(option);
-			}
+            return;
+        }
 
-			window.onresize = function() {
-				chart.resize();
-			};
-		}
+        if (ev == 'P') {
+            // 호전환
+            grid.findRows(function(row) {
+                if (row['var4'] == p_convID) {
+                    grid.removeRow(row.rowKey); // 이전convID 제거
+                }
+                return row;
+            });
 
-		/* 필터 저장용 */
-		opener.QUEUE.popupCols.MONITOR.push(Object.keys(wStat).join());
+            delete wStat[p_convID];
+        }
 
-		$(window).on('beforeunload', function() {
-			opener.QUEUE.popupCols.MONITOR = opener.QUEUE.popupCols.MONITOR.filter(e => e != Object.keys(wStat).join());
-		});
-	</script>
+        var stat = {};
+        stats.forEach((e, i) => {
+            stat['var' + i] = e;
+        });
+
+        // 대기시간 계산
+        var now = Math.round(new Date().getTime() / 1000);
+        var o = getWaittime(now, stat['var7']);
+
+        stat['waittimeSS'] = o.value;
+        stat['waittime'] = getHis(o.value);
+        stat['sec'] = o.sec;
+
+        wStat[convID] = stat;
+
+        // grid 내 해당 로우가 없는 경우, 로우 추가
+        var row = grid.findRows({'var4': convID});
+        if (row.length < 1) {
+            grid.appendRow(stat);
+            row = grid.findRows({'var4': convID});
+
+        } else {
+            Object.keys(stat).forEach(key => grid.setValue(row[0].rowKey, key, stat[key]));
+        }
+
+        updateChart();
+
+        if (!timer) {
+            setTimer();
+        }
+    }
+
+    /* chart 갱신 */
+    function updateChart() {
+        chart.setOption(
+            {
+                series: {
+                    type: 'bar',
+                    label: {
+                        show: true,
+                        position: 'inside'
+                    },
+                    data: [
+                        {value: grid.findRows({sec: '1'}).length, itemStyle: {color: '#66bd63'}},
+                        {value: grid.findRows({sec: '2'}).length, itemStyle: {color: '#a6d96a'}},
+                        {value: grid.findRows({sec: '3'}).length, itemStyle: {color: '#d9ef8b'}},
+                        {value: grid.findRows({sec: '4'}).length, itemStyle: {color: '#fee08b'}},
+                        {value: grid.findRows({sec: '5'}).length, itemStyle: {color: '#fdae61'}},
+                        {value: grid.findRows({sec: '6'}).length, itemStyle: {color: '#f46d43'}}
+                    ]
+                }
+            }
+        );
+    }
+
+    /* 대기시간 update (5초 간격) */
+    function setTimer() {
+        clearTimeout(timer);
+
+        timer = setTimeout(function() {
+            var data = JSON.parse(JSON.stringify(wStat));
+            var keys = Object.keys(data);
+            var now = Math.round(new Date().getTime() / 1000);
+
+            for (var i=0; i<keys.length; i++) {
+                var convID = keys[i];
+
+                try {
+                    var stat = data[convID];
+                    var o = getWaittime(now, stat['var7']);
+
+                    // 대기시간 15분 이상 경과된 호는 종료이벤트가 누락되었을 가능성이 있으므로, 해당 큐에 대한 대기호 목록을 재요청한다
+                    if (toNumber(o.value) >= 310) {
+                        reopenStat(stat);
+
+                    } else {
+                        var row = grid.findRows({'var4': convID});
+                        if (row && row.length > 0 && wStat[convID]) {
+                            wStat[convID]['waittimeSS'] = o.value;
+                            wStat[convID]['waittime'] = getHis(o.value);
+                            wStat[convID]['sec'] = o.sec;
+                            wStat[convID]['rowKey'] = row[0].rowKey;
+
+                            if (grid.getSortState().columns.length == 1 && grid.getSortState().columns[0].columnName == 'sortKey') {
+                                grid.setValue(row[0].rowKey, 'waittime', wStat[convID]['waittime']);
+                                grid.setValue(row[0].rowKey, 'sec', wStat[convID]['sec']);
+                            }
+                        }
+                    }
+
+                } catch (e) {
+                    console.error(new Date().format('yyyyMMdd_hhmm'), 'STAT UPDATE ERROR >', convID, data, e);
+                    continue;
+                }
+            }
+
+            if (!(grid.getSortState().columns.length == 1 && grid.getSortState().columns[0].columnName == 'sortKey')) {
+               grid.setRows(Object.values(wStat).filter(e => e.rowKey > -1));
+            }
+
+            updateChart();
+            setTimer();
+
+        }, 5000);
+    }
+
+    /* winker 재요청 */
+    function reopenStat(stat) {
+        //console.log(new Date().format('yyyy-MM-dd hh:mm:ss'), 'reopen', stat);
+
+        winker.wCloseStat(stat['var1'], '207');
+        winker.wOpenStat(stat['var1'], '207');
+    }
+
+    /* 대기시간 및 해당 구간 */
+    function getWaittime(var1, var2) {
+        var waittimeSS = toNumber(var1) - toNumber(var2); // 현재시간 - 대기시작시간
+        var sec = '';
+
+        if (waittimeSS > 50) {
+            sec = '6';
+        } else if (waittimeSS > 40) {
+            sec = '5';
+        } else if (waittimeSS > 30) {
+            sec = '4';
+        } else if (waittimeSS > 20) {
+            sec = '3';
+        } else if (waittimeSS > 10) {
+            sec = '2';
+        } else {
+            sec = '1';
+        }
+
+        var result = {};
+        result.value = waittimeSS;
+        result.sec = sec;
+
+        return result;
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        var active = !document.hidden && $('.u-container').is(':visible');
+        wsCheckState(winker, active);
+
+        if (winker.inactiveCloseFlag) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    });
+
+    /* 팝업 오픈 시 */
+    $(window).on('load', function() {
+        if (opener) {
+            opener.QUEUE.popupCols.MONITOR.push(qids.join()); // 조회 조건 저장 (필터저장용)
+        }
+        setPopupCount('qmonitor', 'OPEN'); // 현재 팝업 개수 갱신 (cookie)
+    });
+
+    /* 팝업 닫을 시 */
+    $(window).on('beforeunload', function() {
+        if (opener) {
+            opener.QUEUE.popupCols.MONITOR = opener.QUEUE.popupCols.MONITOR.filter(e => e != qids.join()); // 조회 조건 삭제 (필터저장용)
+        }
+        setPopupCount('qmonitor', 'CLOSE'); // 현재 팝업 개수 갱신 (cookie)
+    });
+</script>
+
+<script>
+    var Grid = tui.Grid;
+    Grid.applyTheme('clean');
+    Grid.setLanguage('ko');
+
+    class secRenderer {
+        constructor(props) {
+            this.el = document.createElement('div');
+            this.render(props);
+        }
+
+        getElement() {
+            return this.el;
+        }
+
+        render(props) { // 대기시간 구간별 강조색 html 제어
+            $(this.el).addClass('tui-grid-cell-content');
+            $(this.el).text(props.value);
+
+            var sec = props.grid.getValue(props.rowKey, 'sec');
+
+            var $cell = $('.tui-grid-cell[data-row-key="' + props.rowKey + '"]');
+            $cell.attr('data-sec', sec);
+        }
+    }
+
+    grid = new Grid({
+        el: document.getElementById('grid-wrapper'),
+        usageStatistics: false,
+        scrollX: false,
+        scrollY: true,
+        bodyHeight: 'fitToParent',
+        minRowHeight: 35,
+        rowHeight: 35,
+        header: {
+           height: 35,
+           align: 'left'
+        },
+        columnOptions: {
+           resizable: true
+        },
+        columns: [
+           {
+              header: '큐ID',
+              name: 'var1',
+              hidden: true
+           },
+           {
+              header: '큐번호',
+              name: 'qname',
+              ellipsis: true,
+              sortable: true,
+              comparator: function(valueA, valueB, rowA, rowB) { // 정렬
+                 var a = grid.getFormattedValue(rowA.rowKey, 'qname');
+                 var b = grid.getFormattedValue(rowB.rowKey, 'qname');
+                 return a < b ? -1 : (a > b ? 1 : 0);
+              },
+              formatter: data => qInfo.find(e => e.id == data.row['var1']).qname
+           },
+           {
+              header: '큐이름',
+              name: 'description',
+              ellipsis: true,
+              sortable: true,
+              comparator: function(valueA, valueB, rowA, rowB) { // 정렬
+                 var a = grid.getFormattedValue(rowA.rowKey, 'description');
+                 var b = grid.getFormattedValue(rowB.rowKey, 'description');
+                 return a < b ? -1 : (a > b ? 1 : 0);
+              },
+              formatter: data => qInfo.find(e => e.id == data.row['var1']).description
+           },
+           {
+              header: '대기시작시간',
+              name: 'var7',
+              hidden: true
+           },
+           {
+              header: 'sec', // 대기시간 구간별
+              name: 'sec',
+              hidden: true
+           },
+           {
+              header: '대기시간',
+              name: 'waittime',
+              ellipsis: true,
+              sortable: true,
+              renderer: { // 대기시간 구간별 강조색 html 처리
+                  type: secRenderer
+              }
+           },
+           {
+              header: '고객번호',
+              name: 'var5',
+              width: 120,
+              ellipsis: true,
+              sortable: true,
+              formatter: data => {
+                 var values = [...data.value];
+                 values.forEach((e, i) => {
+                    if (3 <= i && i <= 6) {
+                       values[i] = '*';
+                    }
+                 });
+
+                 return values.join('');
+              }
+           },
+           {
+              header: '스킬',
+              name: 'var3',
+              hidden: true
+           },
+           {
+              header: '순위',
+              name: 'var6',
+              width: 80,
+              ellipsis: true,
+              sortable: true
+           },
+           {
+              header: '호ID',
+              name: 'var4',
+              ellipsis: true,
+              sortable: true
+           }
+        ]
+    });
+</script>
 </body>
 </html>

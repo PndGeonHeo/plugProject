@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
-<title>실시간 상담사 현황</title>
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
-<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
 
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/bootstrap.bundle-4.5.2.min.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/muuri.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/treeselectjs.umd.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/realtime_comm.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery.cookie.js"></script>
 
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/bootstrap.bundle-4.5.2.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/muuri.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/treeselectjs.umd.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
 
-<style>
+	<script type="text/javascript" src="/webroot/ssoagent/js/bytebuffer.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/winker_const.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/winker_api.js?v=${timestamp}"></script>
+
+	<style>
 	ul {display:inline-block;}
 	.u-container * {font-size:13px;font-weight:500;color:#221815;}
 	.box-container {text-align:center;margin:0 0 1.5rem;}
@@ -27,14 +29,17 @@
 	.box-wrapper {width:350px;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
 	.box-wrapper:active {background-color:#b3bcc7;}
 	.box-wrapper:active .title {color:#fff;}
-	.box-wrapper:active .summary span {color:#fff;background:inherit;border:0;}
+	.box-wrapper:active .summary span:not([data-value="all"]) {color:#fff;background:inherit;border:0;}
 	.box {height:fit-content;}
-	.box .title {padding-top:.75rem;padding-bottom:.5rem;font-size:14px;}
+	.box .title {padding-top:.75rem;padding-bottom:.5rem;}
 	.box .summary {line-height:1.5rem;padding-bottom:.15rem;}
-	.box .summary span {border-radius:10px;background-color:#f1f1f1;border:1px solid #c4c4cb;padding:.25rem .35rem;margin:0 .1rem;}
+	.box .summary span {border-radius:10px;background-color:#f1f1f1;border:1px solid #c4c4cb;padding:.25rem;margin:0 .1rem;font-size:.95em;}
+	.box .summary span[data-value="all"] {background-color:#fff;font-weight:600;}
 	.item-wrapper {grid-template-columns:repeat(4, calc(342px/4));padding:4px;}
 	.item-wrapper > div.item {padding:.25rem .35rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
-	.item-wrapper > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+	.item-wrapper > div.item.logout {background-color:#eee;box-shadow:none !important;}
+	.item-wrapper > div.item.logout * {color:#999 !important;}
+	.item-wrapper > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;height:1.575em;font-size:.975em;}
 	.item-wrapper > div p.name {font-weight:600;}
 	.item-wrapper > div p.loginId, .item-wrapper > div p.agtime {color:#999999;}
 	.item-wrapper p.status {font-weight:600;text-align:center !important;}
@@ -57,7 +62,7 @@
 	.status[data-status="3"] {color:#808000 !important;}
 	.status[data-status="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
 	.status[data-status="4"] {color:#0d9ca3 !important;}
-	.status[data-status="4"]:not([data-auxstatus])::before {content:'';background:url(/webroot/ssoagent/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+	.status[data-status="4"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
 	.status[data-status="5"] {color:#f1c40f !important;}
 	.status[data-status="5"]::before {content:'';background:url(/webroot/ssoagent/images/icon_acw.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
 	.status[data-status="14"] {color:#eb0000 !important;}
@@ -85,29 +90,61 @@
 	#modal-threshold .modal-dialog {width:400px;}
 
 	.tree-container {padding:.1rem 0 .375rem .75rem;background:#fff;}
-	#channel-tree {width:150px;}
+	#channel-tree, #status-select {width:150px;}
 	#org-tree {width:300px;}
 	.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
 	.treeselect-list__slot {background-color:#eef4fb;}
 	.treeselect-input__tags {width:86%;}
+	#status-select .treeselect-input__tags {width:68%;}
 </style>
-<script>
+	<script>
 	var page = 'AGENT_TABLE';
-	var channelCols, listCols = [], popupCols = [];
 
+	// 리스트, 팝업 조회 시 조회 조건 (필터저장용)
+	var channelCols;
+	var listCols, statusCols, popupCols = [];
+
+	var userInfo = ${userInfo};
+
+	var myChannel = '${myChannel}';
 	var channelInfo = ${channelInfo};
-	var orgInfo = ${orgInfo};
-	var orgTree = orgToTree(orgInfo);
+
+	var roleNames = ${customRoleNames};
+	var viewLevels = ${viewLevels};
+	var maxCount = 3;
+	viewLevels.forEach(e => {
+		if (roleNames.indexOf(e.comm_value) > -1) {
+			maxCount = toNumber(e.max_count);
+			return;
+		}
+	});
+
+	var popupMaxCountList = ${popupMaxCount};
+	var popupMaxCount = 0;
+	popupMaxCountList.forEach(e => {
+		if (e.comm_nm == 'agent_chart') {
+			popupMaxCount = toNumber(e.comm_value);
+		}
+	});
+
+	var orgInfo = ${orgInfo};         // 조직(array)
+	var orgTree = orgToTree(orgInfo); // 조직(tree)
+	var orgNm = {};
+	orgInfo.forEach(e => {
+		if (userInfo.filter(u => u.org_cd == e.org_cd).length < 1) {
+			return;
+		}
+
+		orgNm[e.org_cd] = e.center_nm + ' > ' + e.org_name;
+	});
 
 	var ts_chn, ts_org;
 
 	$(document).ready(function() {
-		var channels = [...new Set(orgInfo.map(e => e.channel_nm))];
-
 		// 채널 treeselect
 		ts_chn = new Treeselect({
 			parentHtmlContainer: document.querySelector('#channel-tree'),
-			value: '',
+			value: myChannel,
 			options: arrayToTree({data: channelInfo, name: 'org_name', value: 'org_name', parent: 'hirk_org_cd'}),
 			emptyText: '결과없음',
 			placeholder: '- 채널 -',
@@ -115,7 +152,6 @@
 			searchable: false,
 			showTags: false
 		});
-
 		ts_chn.srcElement.addEventListener('input', e => {
 			setOrgTree(ts_chn.value);
 		});
@@ -129,28 +165,57 @@
 			value: [],
 			options: [],
 			showCount: true,
-			listSlotHtmlComponent: getAllSelectSlot('ts_org'),
 			emptyText: '결과없음',
 			placeholder: '- 센터/그룹/팀 -'
 		});
-
 		ts_org.srcElement.addEventListener('input', e => {
-			treeselectAll(ts_org);
+			if (authCheck()) {
+				ts_org.prevValue = ts_org.ungroupedValue;
+			}
 		});
-		ts_org.srcElement.addEventListener('open', e => {
-			treeselectAll(ts_org);
+
+		if (ts_chn.options.length == 1) {
+			ts_chn.disabled = true;
+		}
+		ts_chn.mount();
+		ts_org.updateValue('${departmentId}');
+
+		// 상담사상태 select options
+		var statusOptions = [];
+		Object.values(WAgentStatus).forEach(e => {
+			if (statusOptions.find(s => s.value == e.text)) {
+				return;
+			}
+
+			statusOptions.push({name: e.text, value: e.text});
 		});
-		ts_org.srcElement.addEventListener('search', e => {
-			ts_org.searchText = e.detail;
+
+		// 상담사상태 select
+		ts_status = new Treeselect({
+			parentHtmlContainer: document.querySelector('#status-select'),
+			value: [],
+			options: statusOptions,
+			listSlotHtmlComponent: getAllSelectSlot('ts_status'),
+			emptyText: '결과없음',
+			placeholder: '- 선택 -'
+		});
+		ts_status.srcElement.addEventListener('input', e => {
+			treeselectAll(ts_status);
+		});
+		ts_status.srcElement.addEventListener('open', e => {
+			treeselectAll(ts_status);
+		});
+		ts_status.srcElement.addEventListener('search', e => {
+			ts_status.searchText = e.detail;
 			setTimeout(function() {
-				treeselectAll(ts_org);
+				treeselectAll(ts_status);
 			}, 400);
 		});
 
 		// 노출 항목 제어
 		$('.list-item').change(function() {
 			if ($('.list-item:checked').length < 1) {
-				alert("1개 이상 선택하세요");
+				BI.Msg.toast("1개 이상 선택하세요");
 				$(this).prop('checked', true);
 				return;
 			}
@@ -166,21 +231,44 @@
 			$(this).find('.modal-content').load('${fineServletURL}/uplus/agent/threshold?page=' + page);
 		});
 
-		// 초기화
+		// 조회 조건 초기화
 		$('#btn-clear').on('click', function() {
-			ts_chn.updateValue('');
+			// 조직
 			ts_org.updateValue([]);
+			if (channelInfo.length > 1) {
+				ts_chn.updateValue('');
+				ts_org.destroy();
+			}
+
+			// 상담사상태
+			ts_status.updateValue([]);
 		});
 
 		// 저장된 필터 기준으로 화면 셋팅
 		setByFilter();
 	});
 
+	/* 조회 권한 체크 */
+	function authCheck() {
+		if (roleNames.indexOf('superusers') < 0) {
+			if (ts_org.ungroupedValue.length > maxCount) {
+				BI.Msg.toast('최대 ' + maxCount + '개 선택 가능합니다', {level: 'error'});
+				ts_org.updateValue(ts_org.prevValue);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	/* 조직(센터/그룹/팀) treeselect */
 	function setOrgTree(chn) {
 		var data = orgTree.filter(e => e.name == chn);
 
-		if (ts_org) ts_org.destroy();
+		if (ts_org) {
+			ts_org.value = [];
+			ts_org.destroy();
+		}
 
 		if (data && data.length > 0) {
 			ts_org.options = data[0].children;
@@ -192,10 +280,22 @@
 	function setByFilter() {
 		var filterInfo = ${filterInfo};
 
+		if (!(filterInfo && filterInfo.length > 0)) {
+			// 필터 없는 경우 로그아웃 제외한 나머지 default
+			var values = ts_status.options.filter(e => e.value != '로그아웃').map(e => e.value);
+			ts_status.updateValue(values);
+		}
+
 		// 임계치
 		window.ft_threshold = {};
 		filterInfo.filter(e => e.type == 'THRESHOLD')
 				  .forEach(e => ft_threshold[e.col] = e.value); // ft_threshold = {CallInbound: xxx, CallOutbound: xxx, ...}
+
+		// 상담사상태
+		var ft_status = filterInfo.filter(e => e.type == 'STATUS').map(e => e.col);
+		if (ft_status.length > 0) {
+			ts_status.updateValue(ft_status);
+		}
 
 		// 노출항목
 		var ft_listItem = filterInfo.filter(e => e.type == 'LIST_ITEM').map(e => e.col);
@@ -215,27 +315,45 @@
 		// 채널
 		var ft_channel = filterInfo.filter(e => e.type == 'CHANNEL').map(e => e.col);
 		if (ft_channel.length > 0) {
-			ts_chn.updateValue(ft_channel);
+			ts_chn.updateValue(ft_channel[0]);
 			setOrgTree(ts_chn.value);
 		}
 
 		// 리스트
-		var ft_list = filterInfo.filter(e => e.type == 'LIST').map(e => {
-			return {col: e.col, value: e.value}
-		});
+		var ft_list = filterInfo.filter(e => e.type == 'LIST')
+								.map(e => { return {col: e.col, value: e.value} });
 		if (ft_list.length > 0) {
 			ts_org.updateValue(ft_list.map(e => e.col));
+		}
+		if (ts_org.value && ts_org.value.length > 0) {
 			submit(ft_list);
 		}
 
 		// 팝업
 		var ft_popup = filterInfo.filter(e => e.type == 'CHART');
-		chart(ft_popup);
+		var cols = {};
+		ft_popup.forEach(e => {
+			var num = e.col.split('^')[0];
+			var id = e.col.split('^')[1];
+			if (!cols.hasOwnProperty(num)) {
+				cols[num] = [];
+			}
+			cols[num].push(id);
+		});
+		Object.values(cols).forEach(e => chart(e));
 	}
 
 	/* 필터저장 */
 	function saveFilter() {
 		var params = [];
+
+		// 상담사상태
+		var status = {
+			page: page,
+			type: 'STATUS',
+			data: statusCols.map(e => {return {col: e}})
+		};
+		params.push(getFilterData(status));
 
 		// 채널
 		var channel = {
@@ -262,11 +380,15 @@
 		params.push(getFilterData(listItem));
 
 		// 팝업
-		var data = Array.from(new Set(popupCols.join().split(','))).sort(); // 중복 제거를 위함
+		var data = [];
+		popupCols.forEach((e, i) => {
+			var ids = e.split(',');
+			data.push(...ids.map(id => { return {col: (i+1) + '^' + id} }));
+		});
 		var popup = {
 			page: page,
 			type: 'CHART',
-			data: data.map(e => { return {col: e} })
+			data: data
 		};
 		params.push(getFilterData(popup));
 
@@ -276,46 +398,74 @@
 	/* 조회 */
 	function submit(data) {
 		if (!ts_chn.value || ts_chn.value.length < 1) {
-			alert('채널을 선택하세요');
+			BI.Msg.toast('채널을 선택하세요');
 			return;
 		}
 
 		if (!ts_org.value || ts_org.value.length < 1) {
-			alert('센터/그룹/팀을 선택하세요');
+			BI.Msg.toast('센터/그룹/팀을 선택하세요');
+			return;
+		}
+
+		if (!authCheck()) {
 			return;
 		}
 
 		channelCols = {col: ts_chn.value};
+		listCols = [];
 
 		if (data) {
 			listCols = data;
 
 		} else {
-			var value = ts_org.value;
-			listCols = orgInfo.filter(e => e.depth == 4 && value.indexOf(e.org_cd) > -1).map((e, i) => {
-				return {col: e.org_cd, value: e.org_name}
+			var value = ts_org.allValue;
+			value.forEach(e => {
+				if (orgNm[e]) {
+					listCols.push({col: e, value: orgNm[e]}); // 소속 인원이 있는 조직만 조회
+				}
 			});
 		}
+
+		if (ts_status.value < 1 || ts_status.value.length == ts_status.options.length) {
+			// 상담사상태 선택값이 없거나, 전체선택인 경우 전체 상태 노출
+			statusCols = [];
+
+		} else {
+			statusCols = ts_status.value;
+		}
+
+		$('.no-data').hide();
 
 		wsStart();
 	}
 
 	/* 상담사현황 차트 팝업 */
 	function chart(data) {
+		if (popupMaxCount) {
+			var count = getPopupCount('agent_chart');
+			if (count >= popupMaxCount) {
+				BI.Msg.toast('해당 팝업은 최대 ' + popupMaxCount + '개 열 수 있습니다.', {level: 'error'});
+				return;
+			}
+		}
+
 		var arr = [];
 
-		if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
-			arr = data.filter(e => e.col).map(obj => obj.col);
-			if (arr.length < 1) return;
+		if (data && data.length > 0) {	// 최초 접속 시 저장된 필터 정보로 오픈
+			arr = data;
 
 		} else {	// 사용자 직접 오픈
 			var value = ts_org.value;
 			arr = [...new Set(orgInfo.filter(e => e.depth == 4 && value.indexOf(e.org_cd) > -1).map(e => e.hirk_org_cd))];
 
 			if (arr.length < 1) {
-				alert('그룹을 선택하세요');
+				BI.Msg.toast('그룹을 선택하세요');
 				return;
 			}
+		}
+
+		if (!authCheck()) {
+			return;
 		}
 
 		$('#chart-form').html('');
@@ -333,82 +483,107 @@
 	var winker;
 	var wProp;
 	var dbID;
-	var statID = [111, 113, 115, 116, 117, 119].join(STA_DIM);
+	var req_dbID = [];
+	var statID = [111, 113, 114, 115, 116, 117, 119].join(STA_DIM);
 
-	var eTimer;
+	var gridInitFlag = true;
 
+	/* 조회 시 websocket event */
 	function wsStart() {
 		if (!isOpen(winker)) {
+			// 기존 connection 없는 경우(ex. 최초 조회) connection부터 시작
 			wsConnect();
 
 		} else {
-			wsClose(); // 기존 연결 해제 후 재연결
+			// 기존 요청 해제 후 재요청
+			wsClose(winker, req_dbID, statID);
 			wsOpen();
 		}
 	}
 
+	/* websocket connect */
 	function wsConnect() {
-		onLoading(true);
+		if (winker && winker.inactiveCloseFlag) {
+			gridInitFlag = false;
+			BI.Msg.toast('데이터 로드중');
+
+		} else {
+			gridInitFlag = true;
+		}
 
 		try {
-			if (!wProp) wProp = getWProperties();
+			if (!wProp) {
+				wProp = getWProperties();
+			}
 
 			winker = new winkWebSocket();
 			var eventCallback = wsCallback;
 			var logCallback   = null;
-			var consoleFlag   = true;
 
-			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
 
 		} catch (e) {
 			wsError();
 		}
 	}
 
-	function wsError() {
-		onLoading(false);
-		BI.Msg.toast('통신 연결 실패', {level: 'error'});
-	}
-
+	/* websocket open */
 	function wsOpen() {
-		$('.no-data').hide();
-		if (grid && !grid._isDestroyed) grid.destroy(true);
+		if (gridInitFlag) {
+			onLoading(true);
 
-		// 팀별 box 영역 append
-		listCols.forEach((e, i) => {
-			var $box = $('<div>', {class: 'box'});
-			$box.append($('<div>', {class: 'title', text: e.value}));
-			$box.append($('<div>', {class: 'summary'}));
-			$box.find('.summary').append($('<span>대기 <em class="cnt3">0</em></span>'));
-			$box.find('.summary').append($('<span>IB <em class="cnt15">0</em></span>'));
-			$box.find('.summary').append($('<span>OB <em class="cnt14">0</em></span>'));
-			$box.find('.summary').append($('<span>후처리 <em class="cnt5">0</em></span>'));
-			$box.find('.summary').append($('<span>이석 <em class="cnt4">0</em></span>'));
-			$box.find('.summary').append($('<span>기타 <em class="cnt99">0</em></span>'));
-			$box.append($('<div>', {class: 'item-wrapper d-grid'}));
+			if (grid && !grid._isDestroyed) {
+				grid.destroy(true);
+			}
 
-			$('.box-container > .grid').append($box);
-			$box.wrap($('<div>', {class: 'grid-item'}))
-				.wrap($('<div>', {class: 'item-content'}))
-				.wrap($('<div>', {class: 'box-wrapper', 'data-org-cd': e.col, 'data-org-name': e.value}));
-		});
+			if (listCols.length < 1) {
+				$('.grid').hide();
+				$('.no-data').show();
+				onLoading(false);
+			}
 
-		createGrid();
-		$('.grid').show();
+			// 팀별 box 영역 append
+			listCols.forEach((e, i) => {
+				var $box = $('<div>', {class: 'box'});
+				$box.append($('<div>', {class: 'title', text: e.value}));
+				$box.append($('<div>', {class: 'summary'}));
+				$box.find('.summary').append($('<span data-value="all">로그인 <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="3">대기 <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="15">IB <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="14">OB <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="5">후처리 <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="4">이석 <em class="cnt">0</em></span>'));
+				$box.find('.summary').append($('<span data-value="99">기타 <em class="cnt">0</em></span>'));
+				$box.append($('<div>', {class: 'item-wrapper d-grid'}));
 
-		var orgCds = listCols.map(e => e.col);
-		dbID = userInfo.filter(e => orgCds.indexOf(e.org_cd) > -1).map(e => e.agid).join(STA_DIM);
+				$('.box-container > .grid').append($box);
+				$box.wrap($('<div>', {class: 'grid-item'}))
+					.wrap($('<div>', {class: 'item-content'}))
+					.wrap($('<div>', {class: 'box-wrapper', 'data-org-cd': e.col, 'data-org-name': e.value}));
+			});
 
-		// socket open
-		winker.wOpenStatExt(dbID, statID);
+			createGrid();
+			$('.grid').show();
+		}
 
-		onLoading(false);
+		wStat = {};
+		gridInitFlag = true;
+		layoutInitFlag = false;
+
+		var orgCds = listCols.map(e => String(e.col));
+		dbID = userInfo.filter(e => orgCds.indexOf(e.org_cd) > -1 && e.agid).map(e => e.agid);
+
+		if (dbID && dbID.length > 0) {
+			// socket open
+			req_dbID = openStat(winker, dbID, statID);
+
+		} else {
+			grid.layout();
+			onLoading(false);
+		}
 	}
 
-	function wsClose() {
-		winker.wCloseStatExt(dbID, statID);
-	}
-
+	/* websocket callback */
 	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
 		// onopen
 		if (eventId == WMessageType.EventServerConnected) {
@@ -417,9 +592,11 @@
 			}, 1000);
 		}
 
-		// onmessage
+		// onmessage (요청 dbID인 경우에만 처리)
 		if (eventId == WMessageType.EventStatInfo) {
-			setData(objectDBId, objectType, statId, statVal);
+			if (dbID.indexOf(objectDBId) > -1) {
+				setData(objectDBId, objectType, statId, statVal);
+			}
 		}
 
 		// onerror
@@ -428,14 +605,10 @@
 		}
 	}
 
-	var userInfo = ${userInfo};
-
 	var wStat = {};
-	var statCols = {111: 'agname', 113: 'num', 115: '115', 116: '116', status: 'status', 117: 'auxStatus', 119: 'agtime', org: 'org'};
+	var statCols = {111: 'agname', 113: 'num', 114: '114', 115: '115', 116: '116', status: 'status', 117: 'auxStatus', 119: 'agtime', org: 'org'};
 
-	/*
-		websocket callback function
-	*/
+	/* websocket 수신 데이터 처리 */
 	function setData(dbID, type, statId, statVal) {
 		if (!wStat[dbID]) {
 			var stat = {};
@@ -450,20 +623,44 @@
 
 		// 현재상태(115)가 Call 관련 상태인 경우, 해당 상태가 우선이 된다
 		if (statId == '115' || statId == '116') {
-			var stat115 = wStat[dbID]['115'];
-			if (5 < Number(stat115)) {
-				wStat[dbID].status = stat115;
-			} else {
+			if (statVal == '0' || statVal == '1') {
 				wStat[dbID].status = statVal;
+
+			} else {
+				var stat115 = wStat[dbID]['115'];
+
+				if (5 < Number(stat115)) {
+					wStat[dbID].status = stat115;
+				} else {
+					wStat[dbID].status = statVal;
+				}
 			}
+		}
+
+		// 이석상세사유가 후처리인 경우, 후처리로 표기
+		if (statId == '117') {
+			if (wStat[dbID].status == '4' && statVal == '8') {
+				wStat[dbID].status = '5';
+			}
+		}
+
+		// skill id값이 있는 경우, IB로 표기
+		if (statId == '114') {
+			if (statVal.length == 36 && wStat[dbID].status == '14') {
+				wStat[dbID].status = '15';
+			}
+		}
+
+		if (wStat[dbID].status) {
+			wStat[dbID].statusMark = WAgentStatus[wStat[dbID].status].mark;
 		}
 
 		setItem(dbID);
 	}
 
-	/*
-		websocket 데이터 수신 후 화면단 처리
-	*/
+	var layoutInitFlag = false;
+
+	/* 화면단 데이터 갱신 */
 	function setItem(dbID) {
 		var stat = wStat[dbID];
 		var $boxwrp = $('.box-wrapper[data-org-cd="' + stat.org + '"]');
@@ -474,11 +671,37 @@
 			return;
 		}
 
-		// 알수없음(0), 로그아웃(1) 인원을 제외한 나머지 인원 전체 노출 (= 로그인 인원만 노출)
-		if (stat.status == '0' || stat.status == '1') {
-			$item.remove();
+		var showStatus = true;
+		if (statusCols.length > 0) {
+			var s = WAgentStatus[stat.status].text;
+
+			// 상담사상태 조회 조건에 해당하지 않는 경우
+			if (statusCols.indexOf(s) < 0) {
+				showStatus = false;
+			}
+
+			// 상담사상태 조회 조건 '로그아웃' 선택 여부에 따른 제어
+			if (stat.status == '0' || stat.status == '1') {
+				if (statusCols.indexOf('로그아웃') < 0) {
+					showStatus = false;
+
+				} else {
+					showStatus = true;
+				}
+			}
+		}
+
+		if (!showStatus) {
+			if ($item.length > 0) {
+				$item.remove(); // 화면상에서 제거
+
+				if (cLayoutEnd && layoutInitFlag) {
+					setGridLayout(true);
+				}
+			}
 
 		} else {
+			// 화면상에 해당 상담사 영역이 없는 경우, 추가
 			if ($item.length < 1) {
 				$item = $('<div>', {class: 'item', id: dbID, 'data-org-cd': stat.org});
 				$item.append($('<p>', {class: 'name'}));
@@ -494,6 +717,18 @@
 						$item.find('.' + $(this).val()).hide();
 					}
 				});
+
+				if (cLayoutEnd && layoutInitFlag) {
+					setGridLayout(true);
+				}
+			}
+
+			// 로그인 상태가 아닌 경우
+			if (stat.status == '0' || stat.status == '1') {
+				$item.addClass('logout');
+
+			} else {
+				$item.removeClass('logout');
 			}
 
 			Object.keys(stat).forEach(key => {
@@ -503,11 +738,6 @@
 				if ($p.length < 1) return false;
 
 				if (key == 'status') {
-					// 화면에 표기되는 대기,이석,후처리,OB,IB 5개 상태를 제외한 나머지 상태는 '기타'로 표기
-					if (['3','4','5','14','15'].indexOf(value) < 0) {
-						value = '99';
-					}
-
 					// 이석 상세 사유 표기
 					if (value == '4' && WAuxStatus[stat.auxStatus]) {
 						$p.text(WAuxStatus[stat.auxStatus].text);
@@ -518,46 +748,70 @@
 						$p.removeAttr('data-auxstatus');
 					}
 
-					$p.attr('data-status', value);
+					$p.attr('data-status', stat.statusMark);
 
 				} else if (key == 'agtime') {
-					$p.text(getHis(value));
+					if (stat.status == '0' || stat.status == '1') {
+						$p.text('-');
 
-					// 상태유지시간 임계치 도달 시 강조 처리
-					var col = WAgentStatus[stat.status].name;
-					if (ft_threshold[col]) {
-						if (Number(value) >= Number(ft_threshold[col])) {
-							$item.addClass('timeout');
+					} else {
+						$p.text(getHis(value));
+
+						// 상태유지시간 임계치 도달 시 강조 처리
+						var col = stat.statusMark;
+						if (ft_threshold[col]) {
+							if (Number(value) >= Number(ft_threshold[col])) {
+								$item.addClass('timeout');
+
+							} else {
+								$item.removeClass('timeout');
+							}
 
 						} else {
 							$item.removeClass('timeout');
 						}
 
-					} else {
-						$item.removeClass('timeout');
+						$item.attr('data-status', col);
 					}
-
-					$item.attr('data-status', stat.status);
 
 				} else {
 					$p.text(value);
 				}
 			});
 
-			$item.attr('title', Array.from($item.find('p').map((i, el) => $(el).text())).join('<br>'));
-			$item.tooltip('dispose');
-			$item.tooltip({html: true});
+			// 툴팁
+			var orgTitle = $item.attr('data-original-title');
+			var title = Array.from($item.find('p:not(.agtime)').map((i, el) => $(el).text())).join('<br>');
+			if (orgTitle != title) {
+				$item.attr('title', title);
+				$item.tooltip('dispose');
+				$item.tooltip({html: true});
+			}
 		}
 
-		// 상태별 카운트 갱신
-		$boxwrp.find('[class^=cnt]').text(0);
-		$boxwrp.find('.item').each(function() {
-			var st = $(this).find('.status').attr('data-status');
-			var cnt = Number($boxwrp.find('.cnt' + st).text());
-			$boxwrp.find('.cnt' + st).text(++cnt);
+		// 상태별 카운트 갱신 (상담사상태 조회 조건과 무관하게 해당 조직 인원 전체에 대한 summary)
+		var agents = Object.values(wStat).filter(e => e.org == stat.org);
+		$boxwrp.find('.summary span').each(function() {
+			var value = $(this).data('value');
+
+			if (value == 'all') {
+				$(this).find('.cnt').text(agents.filter(e => e.statusMark != '0' && e.statusMark != '1').length); // 로그인 수
+
+			} else {
+				$(this).find('.cnt').text(agents.filter(e => e.statusMark == value).length); // 상태별
+			}
 		});
 
-		setGridLayout(true);
+		// 로그아웃 인원은 뒤로 배치
+		$boxwrp.find('.item-wrapper').append($boxwrp.find('.logout'));
+
+		if (!layoutInitFlag) {
+			var statLen = Object.keys(wStat).length;
+			if (window.dbID.length <= statLen) {
+				setGridLayout(true);
+				layoutInitFlag = true;
+			}
+		}
 	}
 </script>
 </head>
@@ -568,8 +822,11 @@
 	<!--필터 영역-->
 	<div class="filter-wrapper shadow-sm d-table">
 		<div class="d-table-cell">
+			<label class="mr-1">조직</label>
 			<div class="tree-container custom-select" id="channel-tree" data-placeholder="- 채널 -"></div>
 			<div class="tree-container custom-select" id="org-tree" data-placeholder="- 센터/그룹/팀 -"></div>
+			<label class="mr-1 ml-1">상담사상태</label>
+			<div class="tree-container custom-select" id="status-select" data-placeholder="- 선택 -"></div>
 			<button class="btn btn-info" onclick="submit();">조회</button>
 			<button class="btn btn-clear" id="btn-clear">초기화</button>
 			<button class="btn btn-info" onclick="chart();">상담사현황</button>
@@ -597,8 +854,6 @@
 	<!--//필터 영역-->
 
 	<!--데이터 영역-->
-	<span class="onloading" style="display:none;"></span>
-
 	<div class="box-container load-data">
 		<div class="no-data">데이터가 존재하지 않습니다</div>
 		<div class="grid" style="display:none;"></div>
@@ -617,31 +872,48 @@
 <script>
 	var col_size = 0; // 기존 컬럼 수
 	var grid;
+	var cLayoutEnd = false;
 
 	/* grid 적용 */
 	function createGrid() {
+		cLayoutEnd = false;
+
 		grid = new Muuri('.grid', {
 			dragEnabled: true,
 			items: '.grid-item',
+			layoutOnInit: false,
 			layoutDuration: 0,
 			layoutOnResize: 0
 		});
 
-		// container 영역 resize 이벤트 발생 시, setGridLayout() 실행
-		var observer = new ResizeObserver((entries) => {
-			for (var entry in entries) {
-				setGridLayout();
-			}
+		// container 영역 resize 이벤트 발생 시, grid layout 조정
+		var observer = new ResizeObserver(() => {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, active);
+
+			setGridLayout();
 		});
 		observer.observe(document.querySelector('.u-container'));
 
-		// box 이동 시, 필터 저장용 데이터 갱신 및 setGridLayout() 실행
+		document.addEventListener('visibilitychange', function() {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, active);
+		});
+
+		// box 이동 시, 필터 저장용 데이터 갱신 및 grid layout 조정
 		grid.on('dragReleaseEnd', function(item) {
 			grid.synchronize();
 			listCols = Array.from($('.box-wrapper').map((i, e) => {
 				return {col: $(e).data('org-cd'), value: $(e).data('org-name')}
 			}));
 			setGridLayout(true);
+		});
+
+		grid.on('layoutEnd', function() {
+			if (layoutInitFlag && !cLayoutEnd) {
+				onLoading(false);
+				cLayoutEnd = true;
+			}
 		});
 	}
 </script>

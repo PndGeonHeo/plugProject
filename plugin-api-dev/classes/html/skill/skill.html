@@ -3,13 +3,20 @@
     Grid.applyTheme('clean');
     Grid.setLanguage('ko');
 
+    var skillInfo;
+    if ('${skillInfo}' == '') {
+        skillInfo = [];
+    } else {
+        skillInfo = JSON.parse('${skillInfo}');
+    }
+
     var SKILL = {
         page: 'SKILL',
-        data: ${skillInfo},
-        listCols: [],
-        groupFlag: true,
-        grid: null,
-        gridOptions: {
+        statData: [],    // 스킬정보(전체)
+        listCols: [],    // 리스트 조회 시 조회 조건 (필터저장용)
+        groupFlag: true, // 그룹별/개별 flag
+        grid: null,      // grid instance
+        gridOptions: {   // grid options
             scrollX: false,
             scrollY: false,
             minBodyHeight: 40,
@@ -42,26 +49,73 @@
             }
         },
 
+        /* grid init */
         setGrid() {
             this.gridOptions.el = $('#skill-grid-wrapper')[0];
             this.grid = new Grid(this.gridOptions);
             this.grid.on('onGridUpdated', e => this.setRowCount()); // 데이터 총 건수
 
-            var observer = new ResizeObserver((entries) => {
-                for (var entry in entries) {
-                    this.grid.refreshLayout();
+            this.grid.on('beforePageMove', ev => {
+                var iGrid = ev.instance;
+                var targetPage = ev.page;
+                var perPage = iGrid.getPagination()._options.perPage;
+                var s = (targetPage - 1) * perPage;
+                var e = (targetPage * perPage) - 1;
+
+                var data = [];
+
+                for (var i=s; i<=e; i++) {
+                    var row = iGrid.getRowAt(i);
+                    if (row) {
+                        var stat;
+                        if (this.groupFlag) {
+                            stat = this.statData.find(e => e.name == row.name);
+
+                        } else {
+                            stat = this.statData.find(e => e.id == row.id);
+                        }
+
+                        if (stat) {
+                            Object.keys(stat).forEach(key => this.grid.setValue(row.rowKey, key, stat[key]));
+                        }
+                    }
                 }
             });
-            observer.observe(document.querySelector('.u-container'));
+
+            // 현재 페이지에 대한 데이터만 갱신하므로, 정렬기준 변경 전 전체 데이터 갱신
+            $('.tui-grid-btn-sorting').on('click', ev => {
+                var data;
+                if (this.groupFlag) {
+                    data = this.statData.filter(e => this.grid.findRows({name: e.name}).length > 0);
+                } else {
+                    data = this.statData.filter(e => this.grid.findRows({id: e.id}).length > 0);
+                }
+                var pagination = this.grid.getPagination(); // 현재 페이징 상태
+                var sortState = this.grid.getSortState().columns; // 현재 정렬 상태
+
+                var options = {};
+                options.pageState = {page: pagination._currentPage, totalCount: data.length, perPage: pagination._options.perPage}; // 페이징
+
+                this.grid.resetData(data, options);
+
+                // 정렬
+                if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+                    sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
+                }
+            });
         },
 
+        /* 필터 기반 조회 */
         setByFilter() {
             var f = ${skillFilter};
 
-            // 그룹/개별 여부
+            // 그룹별/개별 여부
             var f_group = f.filter(e => e.type == 'GROUP_FLAG');
-            if (f_group && f_group.length > 0)
+            if (f_group && f_group.length > 0) {
                 this.groupFlag = JSON.parse(f_group[0].col);
+            }
+
+            this.grid.setColumnHeaders({name: this.groupFlag ? '스킬그룹' : '스킬'});
 
             $('.skill-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
             $('.skill-tab[data-is-group="' + this.groupFlag + '"]').siblings('.skill-tab').addClass('btn-clear');
@@ -69,8 +123,11 @@
             // 리스트
             var f_list = f.filter(e => e.type == 'LIST');
             if (this.groupFlag) {
+                // 그룹별 조회
                 ts_skillgroup.updateValue(f_list.map(e => e.col));
+
             } else {
+                // 개별 조회
                 ts_skillgroup.updateValue(f_list.map(e => e.value));
                 setSkillTree(f_list.map(e => e.value));
                 ts_skill.updateValue(f_list.map(e => e.col));
@@ -82,20 +139,28 @@
             }
         },
 
+        /* 상단 데이터 총 건수 표기 */
         setRowCount() {
-            $('#skill-grid-count').text(this.grid.getRowCount());
+            $('#skill-grid-count').text(this.grid.getRowCount().toLocaleString());
         },
 
+        /* 조회 조건(선택된 스킬 또는 스킬그룹) 가져오기 */
         getChecked(isGroup) {
-            if (typeof isGroup != 'boolean' && !isGroup)
+            if (typeof isGroup != 'boolean' && !isGroup) {
                 isGroup = this.groupFlag;
+            }
 
-            if (isGroup)
+            if (isGroup) {
+                // 그룹별 조회인 경우, 스킬그룹 return
                 return ts_skillgroup.value;
-            else
+
+            } else {
+                // 개별 조회인 경우, 스킬 return
                 return ts_skill.value;
+            }
         },
 
+        /* 조회 버튼 클릭 이벤트 */
         list() {
             var checked = this.getChecked();
             if (!checked || checked.length < 1) {
@@ -106,16 +171,18 @@
             this.listCols = checked;
 
             this.listAjax(true);
-            timer(this);
         },
 
+        /* 조회 */
         listAjax(init) {
-            if (!(this.listCols && this.listCols.length > 0))
+            if (!(this.listCols && this.listCols.length > 0)) {
                 return;
+            }
 
             $.ajax({
                 url         : fineServletURL + '/uplus/skill/ajax',
                 type        : 'POST',
+                async       : false,
                 contentType : 'application/json',
                 context     : this,
                 data        : JSON.stringify({
@@ -123,43 +190,67 @@
                     listCols  : this.listCols
                 }),
                 success     : function(res) {
-                    var data = JSON.parse(res.data);
-                    var sortState = this.grid.getSortState().columns;
-                    var pagination = this.grid.getPagination();
+                    this.statData = JSON.parse(res.data); // 조회 결과
 
-                    if (!init) {
-                        var options = {};
-                        options.pageState = {page: pagination._currentPage, totalCount: data.length, perPage: pagination._options.perPage};
-
-                        this.grid.resetData(data, options);
-
-                        // 정렬
-                        if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
-                            sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
-                        }
+                    if (init) {
+                        // init true인 경우 최초 조회
+                        this.grid.resetData(this.statData, {});
 
                     } else {
-                        this.grid.resetData(data, {});
+                        // 현재 페이지 내 데이터 또는 정렬기준이 적용된 경우 update
+                        if (!(this.grid.getSortState().columns.length == 1 && this.grid.getSortState().columns[0].columnName == 'sortKey')) {
+                            var pagination = this.grid.getPagination(); // 현재 페이징 상태
+                            var sortState = this.grid.getSortState().columns; // 현재 정렬 상태
+
+                            var options = {};
+                            options.pageState = {page: pagination._currentPage, totalCount: this.statData.length, perPage: pagination._options.perPage}; // 페이징
+
+                            this.grid.resetData(this.statData, options);
+
+                            // 정렬
+                            if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+                                sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
+                            }
+
+                        } else {
+                            this.statData.forEach(e => {
+                                var row;
+
+                                if (this.groupFlag) {
+                                    row = this.grid.findRows({name: e.name});
+                                } else {
+                                    row = this.grid.findRows({id: e.id});
+                                }
+
+                                if (row) {
+                                    e.rowKey = row[0].rowKey;
+
+                                    if ($(this.grid.getElement(row[0].rowKey, 'name')).is(':visible')) {
+                                        Object.keys(e).forEach(key => this.grid.setValue(row[0].rowKey, key, e[key]));
+                                    }
+
+                                } else {
+                                    this.grid.appendRow(e);
+                                }
+                            });
+                        }
                     }
-
-                    // 아이콘 제어
-                    $('#loading').toggle(false);
-                    $('#done').toggle(true);
-
-                    this.iTimer = setTimeout(function() {
-                        $('.load-state').toggle();
-                        clearTimeout(this.iTimer);
-                    }, 13000);
                 },
                 error       : function(request,status,error) {
-                    parent.BI.Msg.toast('스킬 조회 실패');
+                    if (!document.hidden && $('.u-container').is(':visible')) {
+                        BI.Msg.toast('스킬 조회 실패');
+                    }
                 }
             });
+
+            timer(this);
         },
 
+        /* 그룹별/개별 탭 클릭 */
         tab(isGroup) {
-            if (this.groupFlag == isGroup)
+            if (this.groupFlag == isGroup) {
                 return;
+            }
 
             var checked = this.getChecked(isGroup);
             if (!checked || checked.length < 1) {
@@ -178,6 +269,7 @@
             this.list();
         },
 
+        /* 필터 저장 */
         saveFilter() {
             var params = [];
 
@@ -185,11 +277,11 @@
             var list = {
                 page: this.page,
                 type: 'LIST',
-                data: this.listCols.map(e => { return {col: e, value: SKILL.data.filter(o => o.id == e)[0].group} })
+                data: this.listCols.map(e => { return {col: e, value: skillInfo.filter(o => o.id == e)[0].group} })
             };
             params.push(getFilterData(list));
 
-            // 그룹/개별 여부 (현재 조회 결과 기준으로 저장)
+            // 그룹별/개별 여부 (현재 조회 결과 기준으로 저장)
             var groupFlag = {
                 page: this.page,
                 type: 'GROUP_FLAG',
@@ -200,32 +292,54 @@
             updateFilter(params);
         },
 
+        /* 엑셀 요청 */
         excel() {
+            var data;
+            if (this.groupFlag) {
+                data = this.statData.filter(e => this.grid.findRows({name: e.name}).length > 0);
+            } else {
+                data = this.statData.filter(e => this.grid.findRows({id: e.id}).length > 0);
+            }
+
+            var sortState = this.grid.getSortState().columns; // 현재 정렬 상태
+            var pagination = this.grid.getPagination();       // 현재 페이징 상태
+
+            var options = {};
+            options.pageState = {page: pagination._currentPage, totalCount: data.length, perPage: pagination._options.perPage}; // 페이징
+
+            this.grid.resetData(data, options); // 화면에서는 현재 페이지에 대한 데이터만 갱신하므로, 엑셀 추출 전 전체 데이터 갱신
+
+            // 정렬
+            if (!(sortState.length == 1 && sortState[0].columnName == 'sortKey')) {
+                sortState.forEach(e => this.grid.sort(e.columnName, e.ascending, true));
+            }
+
             this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '스킬그룹현황' : '스킬현황')});
         },
 
+        /* 조회 조건 초기화 */
         clear() {
             ts_skillgroup.updateValue([]);
             ts_skill.updateValue([]);
         }
     };
 
-    /*
-        스킬현황 조회 timer (15초 간격)
-    */
+    /* 스킬현황 조회 timer (15초 간격) */
     function timer(obj) {
         clearTimeout(obj.timer);
 
         obj.timer = setTimeout(function() {
-            obj.listAjax();
-            timer(obj);
+            try {
+                obj.listAjax();
+
+            } catch (e) {
+                console.error(new Date().format('yyyyMMdd_hhmm'), 'SKILL UPDATE ERROR');
+            }
 
         }, 15000);
     }
 
-    $('.load-state').toggle(false);
-
-    var skillTree = arrayToTree({data: SKILL.data, value: 'id', name: 'name', parent: 'group'});
+    var skillTree = arrayToTree({data: skillInfo, value: 'id', name: 'name', parent: 'group'});
 
     // 스킬그룹 treeselect
     var ts_skillgroup = new Treeselect({
@@ -238,13 +352,16 @@
         emptyText: '결과없음',
         placeholder: '- 선택 -'
     });
-
     ts_skillgroup.srcElement.addEventListener('input', e => {
         treeselectAll(ts_skillgroup);
-        if (!ts_skillgroup.isListOpened) setSkillTree(e.detail);
+        if (!ts_skillgroup.isListOpened) {
+            setSkillTree(e.detail);
+        }
     });
     ts_skillgroup.srcElement.addEventListener('name-change', e => {
-        if (!ts_skillgroup.isListOpened) setSkillTree(e.detail);
+        if (!ts_skillgroup.isListOpened) {
+            setSkillTree(e.detail);
+        }
     });
     ts_skillgroup.srcElement.addEventListener('open', e => {
         treeselectAll(ts_skillgroup);
@@ -259,6 +376,7 @@
         }, 400);
     });
 
+    // 스킬 treeselect
     var ts_skill = new Treeselect({
         parentHtmlContainer: document.querySelector('#skill-tree'),
         value: [],
@@ -268,7 +386,6 @@
         emptyText: '결과없음',
         placeholder: '- 선택 -'
     });
-
     ts_skill.srcElement.addEventListener('input', e => {
         treeselectAll(ts_skill);
     });
@@ -276,8 +393,12 @@
         treeselectAll(ts_skill);
     });
     ts_skill.srcElement.addEventListener('search', e => {
-        if (!ts_skill.searchText && !e.detail) return;
-        if (ts_skill.searchText == e.detail) return;
+        if (!ts_skill.searchText && !e.detail) {
+            return;
+        }
+        if (ts_skill.searchText == e.detail) {
+            return;
+        }
 
         ts_skill.searchText = e.detail;
         setTimeout(function() {
@@ -285,27 +406,64 @@
         }, 400);
     });
 
-    SKILL.setGrid();
-    SKILL.setByFilter();
-
-    /* 스킬 treeselect (스킬그룹 변경 시) */
+    /* 스킬그룹 선택 시 스킬 treeselect option 셋팅 */
     function setSkillTree(skillgroup) {
         if (ts_skill) {
-            if (skillgroup == ts_skill.parent)
+            if (JSON.stringify(skillgroup) == JSON.stringify(ts_skill.parent)) {
                 return;
+            }
 
+            ts_skill.value = [];
             ts_skill.destroy();
         }
 
-        var data = skillTree.filter(e => skillgroup.indexOf(e.value) > -1);
         var options = [];
+        var data = skillTree.filter(e => skillgroup.indexOf(e.value) > -1);
         data.forEach(e => options.push(...e.children));
 
+        options.sort((a, b) => {
+            return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+        });
+
         if (data && data.length > 0) {
+            ts_skill.parent = skillgroup;
             ts_skill.options = options;
             ts_skill.mount();
+        }
+    }
 
-            ts_skill.parent = skillgroup;
+    SKILL.setGrid();     // grid init
+    SKILL.setByFilter(); // 필터 기반 조회
+
+    var observer = new ResizeObserver(() => {
+        checkState();
+        SKILL.grid.refreshLayout();
+    });
+    observer.observe(document.querySelector('.u-container'));
+
+    document.addEventListener('visibilitychange', function() {
+        checkState();
+    });
+
+    /*
+        페이지 오픈 여부에 따른 스킬 현황 조회 제어
+        - 페이지 오픈되어 있지 않은 경우 조회 중단 (ex. 탭 비활성화, 브라우저 최소화)
+        - 다시 오픈되면 재조회
+    */
+    function checkState() {
+
+        var active = !document.hidden && $('.u-container').is(':visible');
+        var existsCols = SKILL.listCols && SKILL.listCols.length > 0;
+
+        if (existsCols && SKILL.timer && !active && !SKILL.inactiveCloseFlag) {
+            SKILL.inactiveCloseFlag = true;
+            clearTimeout(SKILL.timer);
+            SKILL.timer = 0;
+        }
+
+        if (existsCols && !SKILL.timer && active && SKILL.inactiveCloseFlag) {
+            SKILL.inactiveCloseFlag = false;
+            SKILL.listAjax();
         }
     }
 </script>
@@ -335,8 +493,6 @@
                 <button type="button" class="btn skill-tab" data-is-group="true"  onclick="SKILL.tab(true);">그룹</button>
                 <button type="button" class="btn skill-tab" data-is-group="false" onclick="SKILL.tab(false);">개별</button>
             </div>
-            <span class="load-state" id="loading"></span>
-            <span class="load-state" id="done"></span>
         </div>
         <div class="d-table-cell text-right">
             <span class="mr-2">총 <em id="skill-grid-count">0</em>건</span>

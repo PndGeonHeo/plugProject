@@ -10,8 +10,8 @@
     <change-notes><![CDATA[]]></change-notes>
     <main-package>com.controller</main-package>
     <lifecycle-monitor class="com.I18nPluginMonitor"/>
-    <function-recorder class="com.controller.ControllerRegister"/>
+    <function-recorder class="com.controller.develop.ControllerRegister"/>
     <extra-decision>
-        <ControllerRegisterProvider class="com.controller.ControllerRegister"/>
+        <ControllerRegisterProvider class="com.controller.develop.ControllerRegister"/>
     </extra-decision>
 </plugin>

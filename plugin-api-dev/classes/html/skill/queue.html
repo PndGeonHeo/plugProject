@@ -1,23 +1,44 @@
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/bytebuffer.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_const.js"></script>
-<script type="text/javascript" src="${fineServletURL}/file?path=/js/winker_api.js"></script>
+<script type="text/javascript" src="/webroot/ssoagent/js/bytebuffer.js?v=${timestamp}"></script>
+<script type="text/javascript" src="/webroot/ssoagent/js/winker_const.js?v=${timestamp}"></script>
+<script type="text/javascript" src="/webroot/ssoagent/js/winker_api.js?v=${timestamp}"></script>
 
 <script>
     var Grid = tui.Grid;
     Grid.applyTheme('clean');
     Grid.setLanguage('ko');
 
+    var qInfo;
+    if ('${qInfo}' == '') {
+        qInfo = [];
+    } else {
+        qInfo = JSON.parse('${qInfo}');
+    }
+
+    var popupMaxCountList = ${popupMaxCount};
+    var routeMaxCount, qmonitorMaxCount = 0;
+    popupMaxCountList.forEach(e => {
+        if (e.comm_nm == 'route') {
+            routeMaxCount = toNumber(e.comm_value);
+        }
+        if (e.comm_nm == 'qmonitor') {
+            qmonitorMaxCount = toNumber(e.comm_value);
+        }
+    });
+
+    var page = 'QUEUE';
+
     var QUEUE = {
         page: 'QUEUE',
-        data: ${qInfo},
-        listCols: [],
-        popupCols: {
-            ROUTE: [],
-            MONITOR: []
+        data: qInfo,        // 큐정보(전체)
+        listGroupCols: [],  // 리스트 조회 조건 - 큐그룹 (필터저장용)
+        listCols: [],       // 리스트 조회 조건 - 큐 (필터저장용)
+        popupCols: {        // 팝업 조회 조건 (필터저장용)
+            ROUTE: [],      // - 라우트현황
+            MONITOR: []     // - 큐모니터
         },
-        groupFlag: true,
-        grid: null,
-        gridOptions: {
+        groupFlag: true,    // 그룹별/개별 flag
+        grid: null,         // grid instance
+        gridOptions: {      // grid options
             scrollX: false,
             scrollY: false,
             minBodyHeight: 40,
@@ -28,7 +49,8 @@
                 height: 40,
                 align: 'right',
                 columns: [
-                    {name: 'name', align: 'left'}
+                    {name: 'name', align: 'left'},
+                    {name: '206', align: 'center'}
                 ]
             },
             columnOptions: {
@@ -48,44 +70,63 @@
                     width: 200
                 },
                 {
-                    header: '인입호',
-                    name: '211',
-                    align: 'right',
-                    sortable: true,
-                    formatter: function(data) {
-                        return data.value.toLocaleString();
-                    }
-                },
-                {
                     header: '대기호',
                     name: '205',
                     align: 'right',
                     sortable: true,
-                    formatter: function(data) {
-                        return data.value.toLocaleString();
-                    }
+                    formatter: data => data.value.toLocaleString()
                 },
                 {
-                    header: '포기호',
-                    name: '221',
-                    hidden: true,
+                    header: '최대대기시간',
+                    name: '206',
+                    align: 'center',
+                    sortable: true,
+                    width: 120,
+                    formatter: data => getHis(data.value)
+                },
+                {
+                    header: '인입호',
+                    name: '211',
                     align: 'right',
                     sortable: true,
-                    formatter: function(data) {
-                        return data.value.toLocaleString();
-                    }
+                    formatter: data => data.value.toLocaleString()
                 },
                 {
                     header: '응답호',
                     name: '212',
                     align: 'right',
                     sortable: true,
-                    formatter: function(data) {
-                        return data.value.toLocaleString();
-                    }
+                    formatter: data => data.value.toLocaleString()
                 },
                 {
-                    header: '20초이내응답호',
+                    header: '넌서비스호',
+                    name: '231',
+                    hidden: true
+                },
+                {
+                    header: '포기호',
+                    name: '221',
+                    hidden: true
+                },
+                {
+                    header: '포기호',
+                    name: 'abncalls',
+                    align: 'right',
+                    sortable: true,
+                    formatter: data => data.value.toLocaleString()
+                },
+                {
+                    header: '응답호-구간1',
+                    name: '213',
+                    hidden: true
+                },
+                {
+                    header: '응답호-구간2',
+                    name: '214',
+                    hidden: true
+                },
+                {
+                    header: '응답호-구간3',
                     name: '215',
                     hidden: true
                 },
@@ -110,12 +151,15 @@
                     align: 'right',
                     sortable: true,
                     comparator: function(valueA, valueB, rowA, rowB) {
-                        var a = toNumber((rowA['215'] / rowA['211']) * 100);
-                        var b = toNumber((rowB['215'] / rowB['211']) * 100);
+                        var acdcallsA = rowA['213'] + rowA['214'] + rowA['215']; // 20초이내응답호
+                        var acdcallsB = rowB['213'] + rowB['214'] + rowB['215']; // 20초이내응답호
+                        var a = toNumber((acdcallsA / rowA['212']) * 100);
+                        var b = toNumber((acdcallsB / rowB['212']) * 100);
                         return a - b;
                     },
                     formatter: function(data) {
-                        var value = (data.row['215'] / data.row['211']) * 100; // (20초이내응답호/인입호) * 100
+                        var acdcalls = data.row['213'] + data.row['214'] + data.row['215']; // 20초이내응답호
+                        var value = (acdcalls / data.row['211']) * 100; // (20초이내응답호/인입호) * 100
                         return toNumber(value).toFixed(1) + '%';
                     }
                 }
@@ -131,39 +175,35 @@
             }
         },
 
+        /* grid init */
         setGrid() {
             this.gridOptions.el = $('#q-grid-wrapper')[0];
             this.grid = new Grid(this.gridOptions);
             this.grid.on('afterChange', e => this.summary()); // summary update
-
-            var observer = new ResizeObserver((entries) => {
-                for (var entry in entries) {
-                    this.grid.refreshLayout();
-                }
-            });
-            observer.observe(document.querySelector('.u-container'));
         },
 
+        /* 필터 기반 조회 */
         setByFilter() {
             var f = ${qFilter};
 
-            // 그룹/개별 여부
+            // 그룹별/개별 여부
             var f_group = f.filter(e => e.type == 'GROUP_FLAG');
-            if (f_group && f_group.length > 0)
+            if (f_group && f_group.length > 0) {
                 this.groupFlag = JSON.parse(f_group[0].col);
+            }
+
+            this.grid.setColumnHeaders({name: this.groupFlag ? '큐그룹' : '큐'});
 
             $('.q-tab[data-is-group="' + this.groupFlag + '"]').addClass('btn-primary');
             $('.q-tab[data-is-group="' + this.groupFlag + '"]').siblings('.q-tab').addClass('btn-clear');
 
             // 리스트
+            var f_listGroup = f.filter(e => e.type == 'LIST_GROUP');
             var f_list = f.filter(e => e.type == 'LIST');
-            if (this.groupFlag) {
-                ts_qgroup.updateValue(f_list.map(e => e.col));
-            } else {
-                ts_qgroup.updateValue(f_list.map(e => e.value));
-                setQueueTree(f_list.map(e => e.value));
-                ts_queue.updateValue(f_list.map(e => e.col));
-            }
+
+            ts_qgroup.updateValue(f_listGroup.map(e => e.col));
+            setQueueTree(f_listGroup.map(e => e.col));
+            ts_queue.updateValue(f_list.map(e => e.col));
 
             var checked = this.getChecked();
             if (checked && checked.length > 0) {
@@ -172,27 +212,53 @@
 
             // 라우트현황
             var f_route = f.filter(e => e.type == 'ROUTE');
-            this.route(f_route);
+            var cols = {};
+            f_route.forEach(e => {
+                var num = e.col.split('^')[0];
+                var id = e.col.split('^')[1];
+                if (!cols.hasOwnProperty(num)) {
+                    cols[num] = [];
+                }
+                cols[num].push(id);
+            });
+            Object.values(cols).forEach(e => this.route(e));
 
             // 큐모니터
             var f_monitor = f.filter(e => e.type == 'MONITOR');
-            this.qmonitor(f_monitor);
+            var cols = {};
+            f_monitor.forEach(e => {
+                var num = e.col.split('^')[0];
+                var id = e.col.split('^')[1];
+                if (!cols.hasOwnProperty(num)) {
+                    cols[num] = [];
+                }
+                cols[num].push(id);
+            });
+            Object.values(cols).forEach(e => this.qmonitor(e));
         },
 
+        /* 상단 데이터 총 건수 표기 */
         setRowCount() {
-            $('#q-grid-count').text(this.grid.getRowCount());
+            $('#q-grid-count').text(this.grid.getRowCount().toLocaleString());
         },
 
+        /* 조회 조건(선택된 큐 또는 큐그룹) 가져오기 */
         getChecked(isGroup) {
-            if (typeof isGroup != 'boolean' && !isGroup)
+            if (typeof isGroup != 'boolean' && !isGroup) {
                 isGroup = this.groupFlag;
+            }
 
-            if (isGroup)
+            if (isGroup) {
+                // 그룹별 조회인 경우, 큐그룹 return
                 return ts_qgroup.value;
-            else
+
+            } else {
+                // 개별 조회인 경우, 큐 return
                 return ts_queue.value;
+            }
         },
 
+        /* 조회 */
         list() {
             var checked = this.getChecked();
             if (!checked || checked.length < 1) {
@@ -200,14 +266,17 @@
                 return;
             }
 
-            this.listCols = checked;
+            this.listGroupCols = ts_qgroup.value;
+            this.listCols = ts_queue.value;
 
             wsStart();
         },
 
+        /* 그룹별/개별 탭 클릭 */
         tab(isGroup) {
-            if (this.groupFlag == isGroup)
+            if (this.groupFlag == isGroup) {
                 return;
+            }
 
             var checked = this.getChecked(isGroup);
             if (!checked || checked.length < 1) {
@@ -226,14 +295,23 @@
             this.list();
         },
 
+        /* 필터 저장 */
         saveFilter() {
             var params = [];
 
-            // 리스트 (현재 조회 결과 기준으로 저장)
+            // 리스트 - 큐그룹 (현재 조회 결과 기준으로 저장)
+            var list = {
+                page: this.page,
+                type: 'LIST_GROUP',
+                data: this.listGroupCols.map(e => { return {col: e} })
+            };
+            params.push(getFilterData(list));
+
+            // 리스트 - 큐 (현재 조회 결과 기준으로 저장)
             var list = {
                 page: this.page,
                 type: 'LIST',
-                data: this.listCols.map(e => { return {col: e, value: this.data.filter(o => o.id == e)[0].group} })
+                data: this.listCols.map(e => { return {col: e} })
             };
             params.push(getFilterData(list));
 
@@ -246,50 +324,74 @@
             params.push(getFilterData(groupFlag));
 
             // 라우트현황 팝업
+            var data = [];
             var cols = this.popupCols.ROUTE;
-            var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+            cols.forEach((e, i) => {
+                var ids = e.split(',');
+                data.push(...ids.map(id => { return {col: (i+1) + '^' + id} }));
+            });
             var route = {
                 page: this.page,
                 type: 'ROUTE',
-                data: data.map(e => { return {col: e} })
+                data: data
             };
             params.push(getFilterData(route));
 
             // 큐모니터 팝업
+            data = [];
             cols = this.popupCols.MONITOR;
-            var data = Array.from(new Set(cols.join().split(','))).sort(); // 중복 제거를 위함
+            cols.forEach((e, i) => {
+                var ids = e.split(',');
+                data.push(...ids.map(id => { return {col: (i+1) + '^' + id} }));
+            });
             var monitor = {
                 page: this.page,
                 type: 'MONITOR',
-                data: data.map(e => { return {col: e} })
+                data: data
             };
             params.push(getFilterData(monitor));
 
             updateFilter(params);
         },
 
+        /* 엑셀 요청 */
         excel() {
             this.grid.export('xlsx', {useFormattedValue: true, fileName: new Date().format('yyyyMMdd_hhmm') + '_' + (this.groupFlag ? '큐그룹현황' : '큐현황')});
         },
 
+        /* 상단 summary */
         summary() {
             var summary = this.grid.getSummaryValues();
 
-            $('#cnt205').text(summary['205'].sum);	// 대기호
-            $('#cnt211').text(summary['211'].sum);	// 인입호
-            $('#cnt221').text(summary['221'].sum);	// 포기호
-            $('#cnt212').text(summary['212'].sum);	// 응답호
-            $('#acdpt').text(toNumber((summary['212'].sum / summary['211'].sum) * 100).toFixed(1) + '%');	// 응답률 (응답호/인입호 * 100)
+            $('#cnt205').text(summary['205'].sum.toLocaleString());         // 대기호
+            $('#cnt206').text(getHis(toNumber(summary['206'].max)));        // 최대대기시간
+            $('#cnt211').text(summary['211'].sum.toLocaleString());         // 인입호
+            $('#cnt221').text(summary['abncalls'].sum.toLocaleString());    // 포기호
+            $('#cnt212').text(summary['212'].sum.toLocaleString());         // 응답호
+            $('#acdpt').text(toNumber((summary['212'].sum / summary['211'].sum) * 100).toFixed(1) + '%'); // 응답률 (응답호/인입호 * 100)
+
+            var acdcalls = toNumber(summary['213'].sum + summary['214'].sum + summary['215'].sum); // 20초이내응답호
+            $('#sl').text(toNumber((acdcalls / summary['211'].sum) * 100).toFixed(1) + '%');       // 서비스레벨 (20초이내응답호/인입호) * 100
         },
 
+        /* 라우트현황 팝업 */
         route(data) {
+            if (routeMaxCount) {
+                var count = getPopupCount('route');
+                if (count >= routeMaxCount) {
+                    BI.Msg.toast('해당 팝업은 최대 ' + routeMaxCount + '개 열 수 있습니다.', {level: 'error'});
+                    return;
+                }
+            }
+
             var checked = [];
 
-            if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
-                checked = data.filter(e => e.col).map(obj => obj.col);
-                if (checked.length < 1) return;
+            if (data && data.length > 0) {
+                // 최초 접속 시 저장된 필터 정보로 오픈
+                checked = data;
 
-            } else {	// 사용자 직접 오픈
+            } else {
+                // 사용자 직접 오픈
                 var checked = this.getChecked(false);
                 if (!checked || checked.length < 1) {
                     alert('조회 조건을 선택하세요');
@@ -309,34 +411,44 @@
             $fm.submit();
         },
 
+        /* 큐모니터 팝업 */
         qmonitor(data) {
+            if (qmonitorMaxCount) {
+                var count = getPopupCount('qmonitor');
+                if (count >= qmonitorMaxCount) {
+                    BI.Msg.toast('해당 팝업은 최대 ' + qmonitorMaxCount + '개 열 수 있습니다.', {level: 'error'});
+                    return;
+                }
+            }
+
             var checked = [];
 
-            if (data) {	// 최초 접속 시 저장된 필터 정보로 오픈
-                checked = data.filter(e => e.col).map(obj => obj.col);
+            if (data && data.length > 0) {
+                // 최초 접속 시 저장된 필터 정보로 오픈
+                checked = data;
 
-            } else {	// 사용자 직접 오픈
-                var checked = this.getChecked(true);
+            } else {
+                // 사용자 직접 오픈
+                var checked = this.getChecked(false);
                 if (!checked || checked.length < 1) {
                     alert('조회 조건을 선택하세요');
                     return;
                 }
             }
 
-            if (checked.length < 1) return;
-
             var $fm = $('#qmonitor-form');
             $fm.empty();
 
-            checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'qgroup', value: e})));
+            checked.forEach(e => $fm.append($('<input>', {type: 'hidden', name: 'queue', value: e})));
 
             var popupName = 'q-' + checked.join();
 
-            window.open('', popupName, 'width=500,height=310');
+            window.open('', popupName, 'width=1100,height=280');
             $fm.attr('target', popupName);
             $fm.submit();
         },
 
+        /* 조회 조건 초기화 */
         clear() {
             ts_qgroup.updateValue([]);
             ts_queue.updateValue([]);
@@ -346,90 +458,111 @@
     var winker;
     var wProp;
     var dbID;
-    var statID = [205, 212, 215, 221].join(STA_DIM); // 인입호 = 응답호(212) + 포기호(221) 이므로 별도 요청 X
+    var req_dbID = [];
 
-    var wStat = {};
-    var dummyStat = {id: '', name: '', 205: 0, 211: 0, 212: 0, 215: 0, 221: 0};
+    var statID = [205, 206, 212, 213, 214, 215, 221, 231].join(STA_DIM); // 대기호, 최대대기시간, 응답호, 응답호-구간1, 응답호-구간2, 응답호-구간3, 포기호, 넌서비스호
+                                                                         // 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231) 이므로 별도 요청 X
 
+    var wStat = {}; // websocket 수신 데이터
+    var dummyStat = {id: '', name: '', 205: 0, 206: 0, 211: 0, 212: 0, 213: 0, 214: 0, 215: 0, 221: 0, 231: 0, abncalls: 0};
+
+    var gridInitFlag = true;  // true: grid 초기화 / false: grid 유지
+    var dataInitFlag = false; // true: websocket 요청 데이터 모두 수신 완료 (큐 개수 기준이므로, 모든 통계항목이 수신되기 전 어떤 항목이라도 수신되면 true)
+
+    /* 조회 시 websocket event */
     function wsStart() {
         if (!isOpen(winker)) {
+            // 기존 connection 없는 경우(ex. 최초 조회) connection부터 시작
             wsConnect();
 
         } else {
-            wsClose(); // 기존 연결 해제 후 재연결
+            // 기존 요청 해제 후 재요청
+            wsClose(winker, req_dbID, statID);
             wsOpen();
         }
     }
 
-    /*
-        create websocket, connect to server
-    */
-	function wsConnect() {
-		onLoading(true);
+    /* websocket connection */
+    function wsConnect() {
+        if (winker && winker.inactiveCloseFlag) {
+            gridInitFlag = false;
 
-		try {
-			if (!wProp) wProp = getWProperties();
-
-			winker = new winkWebSocket();
-			var eventCallback = wsCallback;
-			var logCallback   = null;
-			var consoleFlag   = true;
-
-			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, consoleFlag, wProp.wssFlag);
-
-		} catch (e) {
-			wsError();
-		}
-	}
-
-    /*
-        websocket error 후처리
-    */
-    function wsError() {
-        onLoading(false);
-        BI.Msg.toast('통신 연결 실패', {level: 'error'});
-    }
-
-    /*
-        open connection(stat)
-    */
-    function wsOpen() {
-        if (QUEUE.grid) QUEUE.grid.clear();
-
-        if (QUEUE.groupFlag) {
-            var queue = QUEUE.data.filter(e => QUEUE.listCols.indexOf(e.group) > -1);
-            dbID = queue.map(e => e.id).join(STA_DIM);
         } else {
-            dbID = QUEUE.listCols.join(STA_DIM);
+            gridInitFlag = true;
         }
 
-        winker.wOpenStatExt(dbID, statID);
+        try {
+            if (!wProp) {
+                wProp = getWProperties();
+            }
 
-        onLoading(false);
-        QUEUE.grid.refreshLayout();
+            winker = new winkWebSocket();
+            var eventCallback = wsCallback;
+            var logCallback   = null;
+
+            winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
+
+        } catch (e) {
+            wsError();
+        }
     }
 
-    function wsClose() {
-        winker.wCloseStatExt(dbID, statID);
+    /* websocket request open */
+    function wsOpen() {
+        if (gridInitFlag) {
+            if (QUEUE.grid && QUEUE.grid.el) {
+                QUEUE.grid.destroy();
+                $('#q-grid-count').text('0'); // 상단 총 건수 업데이트
+            }
+
+            if (!(QUEUE.grid && QUEUE.grid.el)) {
+                QUEUE.setGrid();
+            }
+
+            dataInitFlag = false;
+            onLoading(true);
+        }
+
+        wStat = {};
+        gridInitFlag = true;
+
+        if (QUEUE.groupFlag) {
+            // 그룹별 조회
+            var queue = QUEUE.data.filter(e => QUEUE.listGroupCols.indexOf(e.group) > -1);
+            dbID = queue.map(e => e.id);
+
+        } else {
+            // 개별 조회
+            dbID = QUEUE.listCols;
+        }
+
+        req_dbID = openStat(winker, dbID, statID);
+
+        if (QUEUE.grid && QUEUE.grid.el) {
+            QUEUE.grid.refreshLayout();
+        }
     }
 
-    /*
-        websocket callback
-    */
+    /* websocket callback */
     function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
-        // 서버 연결 완료
+        // onopen
         if (eventId == WMessageType.EventServerConnected) {
             setTimeout(function() {
                 wsOpen();
             }, 1000);
         }
 
-        // 메시지 수신
+        // onmessage (요청 dbID인 경우에만 처리)
         if (eventId == WMessageType.EventStatInfo) {
-            if (QUEUE.groupFlag) {
-                setGroupData(objectDBId, objectType, statId, statVal);
-            } else {
-                setData(objectDBId, objectType, statId, statVal);
+            if (dbID.indexOf(objectDBId) > -1) {
+                if (QUEUE.groupFlag) {
+                    // 그룹별 조회
+                    setGroupData(objectDBId, objectType, statId, statVal);
+
+                } else {
+                    // 개별 조회
+                    setData(objectDBId, objectType, statId, statVal);
+                }
             }
         }
 
@@ -439,9 +572,7 @@
         }
     }
 
-    /*
-        data update - 그룹
-    */
+    /* 화면단 데이터 갱신 (그룹별) */
     function setGroupData(dbID, type, statId, statVal) {
         var group = QUEUE.data.filter(e => e.id == dbID)[0].group;
         var stat = wStat[group];
@@ -449,7 +580,7 @@
             stat = {
                 id: group,
                 name: QUEUE.data.filter(e => e.id == group)[0].name,
-                values: {205: {}, 211: {}, 212: {}, 215: {}, 221: {}}
+                values: {205: {}, 206: {}, 211: {}, 212: {}, 213: {}, 214: {}, 215: {}, 221: {}, 231: {}, abncalls: {}}
             };
             wStat[group] = stat;
         }
@@ -457,11 +588,17 @@
         var values = stat.values;
         values[statId][dbID] = toNumber(statVal);
 
-        // 인입호 = 응답호(212) + 포기호 (221)
-        if (statId == '212' || statId == '221') {
-            values['211'][dbID] = values['212'][dbID] + values['221'][dbID];
+        // 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231)
+        if (statId == '212' || statId == '221' || statId == '231') {
+            values['211'][dbID] = toNumber(values['212'][dbID] + values['221'][dbID] + values['231'][dbID]);
         }
 
+        // 포기호 = 포기호(221) + 넌서비스호(231)
+        if (statId == '221' || statId == '231') {
+            values['abncalls'][dbID] = toNumber(values['221'][dbID] + values['231'][dbID]);
+        }
+
+        // grid 내 해당 로우가 없는 경우, 로우 추가
         var row = QUEUE.grid.findRows({id: stat.id});
         if (row.length < 1) {
             var rowdata = JSON.parse(JSON.stringify(dummyStat));
@@ -470,18 +607,24 @@
             QUEUE.grid.appendRow(rowdata);
             row = QUEUE.grid.findRows({id: stat.id});
 
-            QUEUE.setRowCount();
+            QUEUE.setRowCount(); // 상단 총 건수 업데이트
         }
 
+        // grid data update
         Object.keys(values).forEach(key => {
-            var sum = Object.values(values[key]).reduce((a, b) => a + b, 0);
-            QUEUE.grid.setValue(row[0].rowKey, key, sum);
+            var val = 0;
+
+            if (key == '206') {
+                val = Object.values(values[key]).sort((a, b) => b - a)[0];   // 최대대기시간
+            } else {
+                val = Object.values(values[key]).reduce((a, b) => a + b, 0); // 그룹별 조회이므로, 각 항목 sum
+            }
+
+            QUEUE.grid.setValue(row[0].rowKey, key, val);
         });
     }
 
-    /*
-        data update - 개별
-    */
+    /* 화면단 데이터 갱신 (개별) */
     function setData(dbID, type, statId, statVal) {
         var stat = wStat[dbID];
         if (!stat) {
@@ -493,21 +636,29 @@
 
         stat[statId] = toNumber(statVal);
 
+        // grid 내 해당 로우가 없는 경우, 로우 추가
         var row = QUEUE.grid.findRows({id: dbID});
         if (row.length < 1) {
             QUEUE.grid.appendRow(stat);
             row = QUEUE.grid.findRows({id: dbID});
 
-            QUEUE.setRowCount();
+            QUEUE.setRowCount(); // 상단 총 건수 업데이트
         }
 
-        //QUEUE.grid.setRow(row[0].rowKey, stat);
+        // grid data update
         QUEUE.grid.setValue(row[0].rowKey, statId, stat[statId]);
+        //QUEUE.grid.setRow(row[0].rowKey, stat);
 
-        // 인입호 = 응답호(212) + 포기호 (221)
-        if (statId == '212' || statId == '221') {
-            stat['211'] = stat['212'] + stat['221'];
+        // 인입호 = 응답호(212) + 포기호(221) + 넌서비스호(231)
+        if (statId == '212' || statId == '221' || statId == '231') {
+            stat['211'] = stat['212'] + stat['221'] + stat['231'];
             QUEUE.grid.setValue(row[0].rowKey, '211', stat['211']);
+        }
+
+        // 포기호 = 포기호(221) + 넌서비스호(231)
+        if (statId == '221' || statId == '231') {
+            stat['abncalls'] = stat['221'] + stat['231'];
+            QUEUE.grid.setValue(row[0].rowKey, 'abncalls', stat['abncalls']);
         }
 
         QUEUE.summary();
@@ -526,13 +677,16 @@
         emptyText: '결과없음',
         placeholder: '- 선택 -'
     });
-
     ts_qgroup.srcElement.addEventListener('input', e => {
         treeselectAll(ts_qgroup);
-        if (!ts_qgroup.isListOpened) setQueueTree(e.detail);
+        if (!ts_qgroup.isListOpened) {
+            setQueueTree(e.detail);
+        }
     });
     ts_qgroup.srcElement.addEventListener('name-change', e => {
-        if (!ts_qgroup.isListOpened) setQueueTree(e.detail);
+        if (!ts_qgroup.isListOpened) {
+            setQueueTree(e.detail);
+        }
     });
     ts_qgroup.srcElement.addEventListener('open', e => {
         treeselectAll(ts_qgroup);
@@ -557,7 +711,6 @@
         emptyText: '결과없음',
         placeholder: '- 선택 -'
     });
-
     ts_queue.srcElement.addEventListener('input', e => {
         treeselectAll(ts_queue);
     });
@@ -565,8 +718,12 @@
         treeselectAll(ts_queue);
     });
     ts_queue.srcElement.addEventListener('search', e => {
-        if (!ts_queue.searchText && !e.detail) return;
-        if (ts_queue.searchText == e.detail) return;
+        if (!ts_queue.searchText && !e.detail) {
+            return;
+        }
+        if (ts_queue.searchText == e.detail) {
+            return;
+        }
 
         ts_queue.searchText = e.detail;
         setTimeout(function() {
@@ -574,36 +731,56 @@
         }, 400);
     });
 
-    QUEUE.setGrid();
-    QUEUE.setByFilter();
+    QUEUE.setGrid();     // grid init
+    QUEUE.setByFilter(); // 필터 기반 조회
 
-    /* 큐 treeselect (큐그룹 변경 시) */
+    var observer = new ResizeObserver(() => {
+        var active = !document.hidden && $('.u-container').is(':visible');
+        wsCheckState(winker, active);
+
+        if (QUEUE.grid && QUEUE.grid.el) {
+            QUEUE.grid.refreshLayout();
+        }
+    });
+    observer.observe(document.querySelector('.u-container'));
+
+    document.addEventListener('visibilitychange', function() {
+        var active = !document.hidden && $('.u-container').is(':visible');
+        wsCheckState(winker, active);
+    });
+
+    /* 큐그룹 선택 시 큐 treeselect option 셋팅 */
     function setQueueTree(qgroup) {
         if (ts_queue) {
-            if (qgroup == ts_queue.parent)
+            if (JSON.stringify(qgroup) == JSON.stringify(ts_queue.parent)) {
                 return;
+            }
 
+            ts_queue.value = [];
             ts_queue.destroy();
         }
 
-        var data = qTree.filter(e => qgroup.indexOf(e.value) > -1);
         var options = [];
+        var data = qTree.filter(e => qgroup.indexOf(e.value) > -1);
         data.forEach(e => options.push(...e.children));
 
-        if (data && data.length > 0) {
+        options.sort((a, b) => {
+            return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+        });
+
+        if (options && options.length > 0) {
+            ts_queue.parent = qgroup;
             ts_queue.options = options;
             ts_queue.mount();
-
-            ts_queue.parent = qgroup;
         }
     }
 </script>
 
 <!--라우트현황-->
-<form id="route-form" action="${fineServletURL}/uplus/skill/route" method="GET"></form>
+<form id="route-form" action="${fineServletURL}/uplus/skill/route" method="POST"></form>
 
 <!--큐모니터-->
-<form id="qmonitor-form" action="${fineServletURL}/uplus/skill/qmonitor" method="GET"></form>
+<form id="qmonitor-form" action="${fineServletURL}/uplus/skill/qmonitor" method="POST"></form>
 
 <div class="filter-wrapper shadow-sm d-table">
     <div class="d-table-cell">
@@ -625,31 +802,35 @@
     </div>
 </div>
 
-<span class="onloading" style="display:none;"></span>
-
 <div class="grid-container load-data">
     <!-- summary -->
     <table class="table summary">
         <colgroup>
-            <col width="20%">
-            <col width="20%">
-            <col width="20%">
-            <col width="20%">
-            <col width="20%">
+            <col width="14%">
+            <col width="16%">
+            <col width="14%">
+            <col width="14%">
+            <col width="14%">
+            <col width="14%">
+            <col width="14%">
         </colgroup>
         <tr>
             <th>대기호</th>
+            <th>최대대기시간</th>
             <th>인입호</th>
-            <th>포기호</th>
             <th>응답호</th>
+            <th>포기호</th>
             <th>응답률 (%)</th>
+            <th>SL (%)</th>
         </tr>
         <tr>
             <td id="cnt205">0</td>
+            <td id="cnt206">0</td>
             <td id="cnt211">0</td>
-            <td id="cnt221">0</td>
             <td id="cnt212">0</td>
+            <td id="cnt221">0</td>
             <td id="acdpt">0</td>
+            <td id="sl">0</td>
         </tr>
     </table>
     <!-- // summary -->
