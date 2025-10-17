@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sqlmap>
+
+    <!-- 순창 공장 중 미완료된 안전작업허가서 목록 조회 -->
+    <query id="selectIncompleteWorkPermitList">
+        /* sqlmap.xml.selectIncompleteWorkPermitList */
+        SELECT
+            CONCAT(PERMIT_NO_1, PERMIT_NO_2) AS SHE_PERMIT_NO,
+            WORK_PERMIT_TYPE,
+            RTRIM(
+                CASE WHEN CLOSED_SPACE = 'true' THEN '밀폐공간, ' END ||
+                CASE WHEN BLACKOUT = 'true' THEN '정전, ' END ||
+                CASE WHEN EXCAVATION = 'true' THEN '굴착, ' END ||
+                CASE WHEN RADIATION = 'true' THEN '방사선, ' END ||
+                CASE WHEN HEIGHT = 'true' THEN '고소, ' END ||
+                CASE WHEN HEAVY_EQUIPMENT = 'true' THEN '중장비' END,
+                ', '
+            ) AS SHE_SUP_WORK,
+            WORK_SUMMARY,
+            WORK_PERMIT_YMD,
+            PERMIT_DT,
+            'N' AS WORK_FINISH_WORKER_YN
+        FROM SHED.SAF_WORK_PERMIT
+        WHERE REGEXP_SUBSTR(PERMIT_NO_1, '[^-]+', 1, 1) = '순창'
+        AND WORK_FINISH_WORKER_SIGN IS NULL
+    </query>
+
+    <!-- 순창 공장 중 flag N인 안전검사 관리 목록 조회 -->
+    <query id="selectSafetyInspectionList">
+        /* sqlmap.xml.selectSafetyInspectionList */
+        SELECT
+            UUID,
+            MACHINE_NAME,
+            INSTALL_PLACE,
+            MODEL_NO,
+            KCS,
+            SPEC_FLUID,
+            SPEC_CAPACITY,
+            SPEC_DESIGN_PRESSURE,
+            SPEC_OPERATING_PRESSURE,
+            MANUFACTURER,
+            USAGE,
+            VALIDITY_FROM,
+            VALIDITY_TO,
+            NOTE
+        FROM dbo.SAF_INSPECTION_LIST
+        WHERE WORKPLACE = '순창'
+    </query>
+
+    <!-- 안전검사관리 성공 후 update -->
+    <query id="updateSafetyInspectionList">
+        /* sqlmap.xml.updateSafetyInspectionList */
+        <isNotEmpty property="uuids">
+            UPDATE dbo.SAF_INSPECTION_LIST
+<!--            SET XXX_FLAG = 'Y'-->
+            SET NOTE = '33'
+            WHERE UUID IN (:uuids)
+        </isNotEmpty>
+    </query>
+
+</sqlmap>

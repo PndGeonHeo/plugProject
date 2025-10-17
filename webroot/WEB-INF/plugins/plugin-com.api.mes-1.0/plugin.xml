@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<plugin>
+    <id>com.api.mes</id>
+    <name><![CDATA[ mes-api ]]></name>
+    <active>yes</active>
+    <version>1.0</version>
+    <env-version>11.0</env-version>
+    <vendor>PND</vendor>
+    <jartime>2019-07-18</jartime>
+    <description><![CDATA[ mes-api ]]></description>
+    <change-notes><![CDATA[
+    [2025-10-13]안전작업 허가서 API 호출 처리<br/>
+]]></change-notes>
+    <main-package>com.mes.controller</main-package>
+    <function-recorder class="com.mes.controller.ControllerRegister"/>
+    <extra-decision>
+        <ControllerRegisterProvider class="com.mes.controller.ControllerRegister"/>
+    </extra-decision>
+</plugin>
