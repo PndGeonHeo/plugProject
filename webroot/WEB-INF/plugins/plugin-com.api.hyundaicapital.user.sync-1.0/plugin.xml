@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><plugin>
+    <id>com.api.hyundaicapital.user.sync</id>
+    <name><![CDATA[ user-sync ]]></name>
+    <active>yes</active>
+    <version>1.92</version>
+    <env-version>11.0</env-version>
+    <vendor>PND</vendor>
+    <jartime>2019-07-18</jartime>
+    <description><![CDATA[ hyundaicapital-user-sync ]]></description>
+    <change-notes><![CDATA[
+    [2025-10-27]유저동기화 API<br/>
+]]></change-notes>
+    <main-package>com.hyundaicapital.controller</main-package>
+    <function-recorder class="com.hyundaicapital.controller.ControllerRegister"/>
+    <extra-decision>
+        <ControllerRegisterProvider class="com.hyundaicapital.controller.ControllerRegister"/>
+    </extra-decision>
+</plugin>
