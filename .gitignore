@@ -11,3 +11,15 @@ local.properties
 transform-classes/
 tomcat.*
 webroot/logs/
+**/*.log 
+**/*.error 
+*.error
+**/logs/** 
+**/WEB-INF/reportlets_versions/
+**/WEB-INF/local/
+**/WEB-INF/temp/
+**/WEB-INF/embed/
+**/WEB-INF/assets/
+**/WEB-INF/assist/
+**/webroot/help/
+**/webroot/backup/
