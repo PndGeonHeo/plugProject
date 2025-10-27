@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap.css" />
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/default.css" />
+    <link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap.min.css" />
+    <script type="text/javascript" src="${fineServletURL}/file?path=/bootstrap.bundle.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/js/jquery-2.2.4.min.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/js/login.js"></script>
+    <script type="text/javascript" src="${fineServletURL}/file?path=/js/sha256.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'SUNMOONUNIVERSITY';
+            src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/SUNMOONUNIVERSITY.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+		@font-face {
+			font-family: 'Pretendard-Regular';
+			src: url('https://fastly.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+			font-weight: 400;
+			font-style: normal;
+		}
+        /* 기본 스타일 */
+        body {
+            font-family: Pretendard-Regular, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center; /* 🔹 변경: 우측 정렬 → 중앙 정렬 */
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            background-image: url('/webroot/decision/view/report?op=resource&resource=/img/login_bg.png');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+
+        /* 로고와 제목 스타일 */
+        .header {
+            width: 470px; /* 탭 너비에 맞춤 */
+            text-align: center;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .header img {
+            width: 180px; /* 로고 크기 */
+            height: auto;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            margin: 10px 0 0;
+            color: #333;
+            font-family: "SUNMOONUNIVERSITY";
+        }
+
+        /* 탭 컨테이너 및 고정 너비와 높이 */
+        .tab-container {
+            width: 450px;
+            background-color: transparent;
+            border-radius: 8px;
+            padding: 0px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+        }
+
+        /* 탭 스타일 */
+        .tabs {
+            display: flex;
+            cursor: pointer;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            background-color: #e0e0e0;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+            color: #333;
+            font-size:21px;
+        }
+
+        .tab.active {
+            background-color: #f9f9f9;
+            color: #007bff;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 0 0 8px 8px;
+            color: #007b8f;
+            text-align: center;
+            height: 325px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 입력 필드와 버튼 스타일 */
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+			color: #333;
+        }
+
+        .move-button {
+			width: 80%;
+			height: 40%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            position: relative;
+			border: none;
+			display: inline-block;
+			padding: 15px 30px;
+			border-radius: 15px;
+			font-family: Pretendard-Regular, Arial, sans-serif;
+			box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+			text-decoration: none;
+			font-weight: 600;
+			transition: 0.25s;
+        }
+
+		.move-button:hover {
+			letter-spacing: 2px;
+			transform: scale(1.2);
+			cursor: pointer;
+		}
+
+		.login-button {
+            width: 100%;
+            margin-top:20px;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+<!--            background-color: #519d9e;-->
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+			box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .notice {
+            font-size: 14px;
+            color: #666;
+            margin-top: 15px;
+        }
+        /* 강조되는 상태 */
+        .login-notice-wrapper.show {
+            opacity: 1; /* 표시 */
+            transform: translateX(-50%) scale(1.1); /* 약간 확대 */
+            transition: opacity 0.5s ease, transform 0.5s ease; /* 강조 효과 */
+        }
+
+        /* 사라지는 상태 */
+        .login-notice-wrapper.hide {
+            opacity: 0; /* 점점 사라짐 */
+            transform: translateX(-50%) scale(1); /* 크기 복구 */
+            transition: opacity 0.5s ease, transform 0.5s ease; /* 복구 애니메이션 */
+        }
+
+        .login-notice-wrapper {
+            position: absolute; /* 고정된 위치 */
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0; /* 초기 상태에서 보이지 않음 */
+            transition: opacity 0.5s ease, transform 0.5s ease; /* 애니메이션 효과 */
+        }
+
+        .login-notice {
+            font-size: 14px;
+            color: #DB4455;
+            height: 30px; /* 고정 높이 */
+            line-height: 20px; /* 텍스트 중앙 정렬 */
+            overflow: hidden; /* 텍스트 넘침 방지 */
+            background-color: #fff; /* 배경색 설정 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 약간의 그림자 */
+            padding: 5px 10px; /* 내부 여백 */
+            border-radius: 4px; /* 둥근 테두리 */
+            display: inline-block; /* 인라인 블록 설정 */
+        }
+		.info {
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+<div class="text-wrap _text fr-view">
+<!--    /** 로고 위 상단 문구 단순 텍스트 수정이니 변경해서 쓰세요!*/-->
+    <div class="fadeup-animation">
+        <p style="line-height: 1; text-align: center;">
+        <span style="font-size: 40px; color: rgb(255, 255, 255); font-weight: 300;">
+            <strong>FineReport</strong>
+        </span>
+        </p>
+        <p style="line-height: 1; text-align: center;">
+            <span style="font-size: 18px; color: rgb(255, 255, 255); font-weight: 300;">
+                <strong>비즈니스의 문제를 해결해주는<br>리포팅 및 대시보드 솔루션</strong></span>
+        </p>
+    </div>
+<!--    /**로고 위 상단 문구 끝*/-->
+</div>
+<div class="header">
+<!--    <div class="text-wrap">-->
+<!--        <img src="${fineServletURL}/view/report?op=resource&resource=/img/login_logo.png" alt="로고">-->
+<!--    </div>-->
+    <img class="loginLogo" src="${fineServletURL}/view/report?op=resource&resource=/img/login_logo.png" alt="로고">
+    <h1></h1>
+</div>
+
+<div class="tab-container">
+    <div class="tabs" id="tabs"></div>
+    <div id="contents"></div>
+</div>
+
+<script>
+    var resultData = ${resultJson};
+    init(resultData);
+</script>
+
+</body>
+</html>

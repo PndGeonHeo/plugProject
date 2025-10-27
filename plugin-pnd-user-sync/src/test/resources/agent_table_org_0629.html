@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>실시간 상담사 현황</title>
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/bootstrap-4.5.2.min.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="${fineServletURL}/file?path=/css/treeselectjs.css" />
+
+	<script type="text/javascript" src="/webroot/ssoagent/js/jquery-2.2.4.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/bootstrap.bundle-4.5.2.min.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/muuri.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/treeselectjs.umd.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/realtime_comm.js?v=${timestamp}"></script>
+
+	<script type="text/javascript" src="/webroot/ssoagent/js/bytebuffer.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/winker_const.js?v=${timestamp}"></script>
+	<script type="text/javascript" src="/webroot/ssoagent/js/winker_api.js?v=${timestamp}"></script>
+
+	<style>
+	ul {display:inline-block;}
+	.u-container * {font-size:13px;font-weight:500;color:#221815;}
+	.box-container {text-align:center;margin:0 0 1.5rem;}
+	.grid {position:relative;margin:0 auto;}
+	.grid-item {position:absolute;margin:1.5rem 0 .5rem 1.75em;}
+
+	.box-wrapper {width:350px;display:inline-grid;background-color:#f5f5f5;border-radius:10px;box-shadow:0px 1px 3px rgba(0,0,0,0.2);}
+	.box-wrapper:active {background-color:#b3bcc7;}
+	.box-wrapper:active .title {color:#fff;}
+	.box-wrapper:active .summary span:not([data-value="all"]) {color:#fff;background:inherit;border:0;}
+	.box {height:fit-content;}
+	.box .title {padding-top:.75rem;padding-bottom:.5rem;}
+	.box .summary {line-height:1.5rem;padding-bottom:.15rem;}
+	.box .summary span {border-radius:10px;background-color:#f1f1f1;border:1px solid #c4c4cb;padding:.25rem;margin:0 .1rem;font-size:.95em;}
+	.box .summary span[data-value="all"] {background-color:#fff;font-weight:600;}
+	.item-wrapper {grid-template-columns:repeat(4, calc(342px/4));padding:4px;}
+	.item-wrapper > div.item {padding:.25rem .35rem;background:#fff;margin:3px;border-radius:10px;box-shadow:rgba(0, 0, 0, 0.075) 0px .125rem .25rem !important;}
+	.item-wrapper > div p {line-height:1.6em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-size:.975em;}
+	.item-wrapper > div p.name {font-weight:600;}
+	.item-wrapper > div p.loginId, .item-wrapper > div p.agtime {color:#999999;}
+	.item-wrapper p.status {font-weight:600;text-align:center !important;}
+
+	.filter-wrapper {border-bottom:1px solid #ebebeb;padding:20px 2rem;width:100%;}
+	.filter-wrapper * {vertical-align:middle;}
+	.filter-wrapper .d-table-cell:last-child {min-width:80px;}
+	.filter-wrapper select {width:10em;display:inline-block;padding-top:2px;}
+	.filter-wrapper label {vertical-align:middle;line-height:1em;}
+	.filter-wrapper .checkbox-inline {line-height:21px;margin-right:0;}
+	.filter-wrapper .checkbox-inline:not(:first-child) {margin-left:.75rem;}
+	.filter-wrapper .checkbox-inline label {display:inline-flex;}
+	.filter-wrapper .checkbox-inline input[type=checkbox] {margin-right:5px;}
+
+	button.btn, .custom-select {height:25px !important;}
+	.btn {line-height:12px;color:#fff;}
+	.btn-clear {background-color:#d9d9d9;}
+	.btn-white {background:#fff;border:1px solid #6d6875;color:#444;}
+
+	.status[data-status="3"] {color:#808000 !important;}
+	.status[data-status="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_wait.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"] {color:#0d9ca3 !important;}
+	.status[data-status="4"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 1px 1px 0;}
+	.status[data-status="5"] {color:#f1c40f !important;}
+	.status[data-status="5"]::before {content:'';background:url(/webroot/ssoagent/images/icon_acw.png) no-repeat;background-size:15px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="14"] {color:#eb0000 !important;}
+	.status[data-status="14"]::before {content:'';background:url(/webroot/ssoagent/images/icon_ob.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+	.status[data-status="15"]::before {content:'';background:url(/webroot/ssoagent/images/icon_ib.png) no-repeat;background-size:13px;width:15px;height:15px;display:inline-block;vertical-align:middle;margin:0 1px 0 0;}
+	.status[data-status="99"]::before {content:'';background:url(/webroot/ssoagent/images/icon_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+	.status[data-status="4"][data-auxstatus="1"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_massage.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="2"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_rest.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="3"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_mentoring.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="4"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_edu.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="5"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_counseling.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="6"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_dataprcsng.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+	.status[data-status="4"][data-auxstatus="7"]::before {content:'';background:url(/webroot/ssoagent/images/icon_aux_etc.png) no-repeat;background-size:15px;width:1.2em;height:1.2em;display:inline-block;vertical-align:middle;margin:0 2px 1px 0;}
+
+	.timeout p {color:#221815 !important;}
+	.timeout[data-status="3"] {background-color:#e3e3c7 !important;}
+	.timeout[data-status="4"] {background-color:#b6dfe7 !important;}
+	.timeout[data-status="5"] {background-color:#feffd6 !important;}
+	.timeout[data-status="14"] {background-color:#f3cebc !important;}
+	.timeout[data-status="15"] {background-color:#bfd8ff !important;}
+
+	.no-data {position: absolute;top:400px;left:50%;transform:translate(-50%,-50%);color:#bbb;}
+
+	#modal-threshold .modal-dialog {width:400px;}
+
+	.tree-container {padding:.1rem 0 .375rem .75rem;background:#fff;}
+	#channel-tree {width:150px;}
+	#org-tree {width:300px;}
+	.tree-container:empty:before {content:attr(data-placeholder);color:#6c757d;}
+	.treeselect-list__slot {background-color:#eef4fb;}
+	.treeselect-input__tags {width:86%;}
+</style>
+	<script>
+	var page = 'AGENT_TABLE';
+	var channelCols, listCols = [], popupCols = [];
+
+	var userInfo = ${userInfo};
+
+	var myChannel = '${myChannel}';
+	var channelInfo = ${channelInfo};
+
+	var roleNames = ${customRoleNames};
+	var viewLevels = ${viewLevels};
+	var maxCount = 3;
+	viewLevels.forEach(e => {
+		if (roleNames.indexOf(e.comm_value) > -1) {
+			maxCount = toNumber(e.max_count);
+			return;
+		}
+	});
+
+	var orgInfo = ${orgInfo};         // 조직(array)
+	var orgTree = orgToTree(orgInfo); // 조직(tree)
+	var orgNm = {};
+	orgInfo.forEach(e => {
+		//if (e.depth < 4) {
+			if (userInfo.filter(u => u.org_cd == e.org_cd).length < 1) {
+				return;
+			}
+		//}
+
+		orgNm[e.org_cd] = e.center_nm + ' > ' + e.org_name;
+	});
+
+	var ts_chn, ts_org;
+
+	$(document).ready(function() {
+		// 채널 treeselect
+		ts_chn = new Treeselect({
+			parentHtmlContainer: document.querySelector('#channel-tree'),
+			value: myChannel,
+			options: arrayToTree({data: channelInfo, name: 'org_name', value: 'org_name', parent: 'hirk_org_cd'}),
+			emptyText: '결과없음',
+			placeholder: '- 채널 -',
+			isSingleSelect: true,
+			searchable: false,
+			showTags: false
+		});
+		ts_chn.srcElement.addEventListener('input', e => {
+			setOrgTree(ts_chn.value);
+		});
+		ts_chn.srcElement.addEventListener('name-change', e => {
+			setOrgTree(ts_chn.value);
+		});
+
+		// 센터/그룹/팀 treeselect
+		ts_org = new Treeselect({
+			parentHtmlContainer: document.querySelector('#org-tree'),
+			value: [],
+			options: [],
+			showCount: true,
+			emptyText: '결과없음',
+			placeholder: '- 센터/그룹/팀 -'
+		});
+		ts_org.srcElement.addEventListener('input', e => {
+			if (authCheck()) {
+				ts_org.prevValue = ts_org.ungroupedValue;
+			}
+		});
+
+		if (ts_chn.options.length == 1) {
+			ts_chn.disabled = true;
+		}
+		ts_chn.mount();
+		ts_org.updateValue('${departmentId}');
+
+		// 노출 항목 제어
+		$('.list-item').change(function() {
+			if ($('.list-item:checked').length < 1) {
+				BI.Msg.toast("1개 이상 선택하세요");
+				$(this).prop('checked', true);
+				return;
+			}
+
+			var clz = $(this).val();
+			$('.' + clz).toggle($(this).prop('checked'));
+
+			setGridLayout(true);
+		});
+
+		// 임계치 설정 레이어팝업
+		$('#modal-threshold').on('show.bs.modal', function(e) {
+			$(this).find('.modal-content').load('${fineServletURL}/uplus/agent/threshold?page=' + page);
+		});
+
+		// 초기화
+		$('#btn-clear').on('click', function() {
+			ts_org.updateValue([]);
+			if (channelInfo.length > 1) {
+				ts_chn.updateValue('');
+				ts_org.destroy();
+			}
+		});
+
+		// 저장된 필터 기준으로 화면 셋팅
+		setByFilter();
+	});
+
+	/* 조회 권한 체크 */
+	function authCheck() {
+		if (roleNames.indexOf('superusers') < 0) {
+			if (ts_org.ungroupedValue.length > maxCount) {
+				BI.Msg.toast('최대 ' + maxCount + '개 선택 가능합니다', {level: 'error'});
+				ts_org.updateValue(ts_org.prevValue);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/* 조직(센터/그룹/팀) treeselect */
+	function setOrgTree(chn) {
+		var data = orgTree.filter(e => e.name == chn);
+
+		if (ts_org) {
+			ts_org.value = [];
+			ts_org.destroy();
+		}
+
+		if (data && data.length > 0) {
+			ts_org.options = data[0].children;
+			ts_org.mount();
+		}
+	}
+
+	/* 저장된 필터 기준으로 화면 셋팅 */
+	function setByFilter() {
+		var filterInfo = ${filterInfo};
+
+		// 임계치
+		window.ft_threshold = {};
+		filterInfo.filter(e => e.type == 'THRESHOLD')
+				  .forEach(e => ft_threshold[e.col] = e.value); // ft_threshold = {CallInbound: xxx, CallOutbound: xxx, ...}
+
+		// 노출항목
+		var ft_listItem = filterInfo.filter(e => e.type == 'LIST_ITEM').map(e => e.col);
+		if (ft_listItem.length < 1) {
+			$('.list-item').prop('checked', true); // 필터 데이터 없는 경우 전체 항목 노출
+
+		} else {
+			$('.list-item').each(function() {
+				if (ft_listItem.indexOf($(this).val()) > -1) {
+					$(this).prop('checked', true);
+				} else {
+					$(this).prop('checked', false);
+				}
+			});
+		}
+
+		// 채널
+		var ft_channel = filterInfo.filter(e => e.type == 'CHANNEL').map(e => e.col);
+		if (ft_channel.length > 0) {
+			ts_chn.updateValue(ft_channel[0]);
+			setOrgTree(ts_chn.value);
+		}
+
+		// 리스트
+		var ft_list = filterInfo.filter(e => e.type == 'LIST')
+								.map(e => { return {col: e.col, value: e.value} });
+		if (ft_list.length > 0) {
+			ts_org.updateValue(ft_list.map(e => e.col));
+		}
+		if (ts_org.value && ts_org.value.length > 0) {
+			submit();
+		}
+
+		// 팝업
+		var ft_popup = filterInfo.filter(e => e.type == 'CHART');
+		if (ft_popup.length > 0) {
+			chart(ft_popup);
+		}
+	}
+
+	/* 필터저장 */
+	function saveFilter() {
+		var params = [];
+
+		// 채널
+		var channel = {
+			page: page,
+			type: 'CHANNEL',
+			data: channelCols
+		};
+		params.push(getFilterData(channel));
+
+		// 리스트 (현재 조회 결과 기준으로 저장)
+		var list = {
+			page: page,
+			type: 'LIST',
+			data: listCols
+		};
+		params.push(getFilterData(list));
+
+		// 데이터 노출 항목 (이름/로그인ID/상태/시간)
+		var listItem = {
+			page: page,
+			type: 'LIST_ITEM',
+			data: Array.from($('.list-item:checked').map((i, e) => { return {col: $(e).val()} }))
+		};
+		params.push(getFilterData(listItem));
+
+		// 팝업
+		var data = Array.from(new Set(popupCols.join().split(','))).sort(); // 중복 제거를 위함
+		var popup = {
+			page: page,
+			type: 'CHART',
+			data: data.map(e => { return {col: e} })
+		};
+		params.push(getFilterData(popup));
+
+		updateFilter(params);
+	}
+
+	/* 조회 */
+	function submit() {
+		if (!ts_chn.value || ts_chn.value.length < 1) {
+			BI.Msg.toast('채널을 선택하세요');
+			return;
+		}
+
+		if (!ts_org.value || ts_org.value.length < 1) {
+			BI.Msg.toast('센터/그룹/팀을 선택하세요');
+			return;
+		}
+
+		if (!authCheck()) {
+			return;
+		}
+
+		channelCols = {col: ts_chn.value};
+
+		var value = ts_org.allValue;
+		listCols = [];
+		value.forEach(e => {
+			if (orgNm[e]) {
+				listCols.push({col: e, value: orgNm[e]}); // 소속 인원이 있는 조직만 조회
+			}
+		});
+
+		$('.no-data').hide();
+		onLoading(true);
+
+		wsStart();
+	}
+
+	/* 상담사현황 차트 팝업 */
+	function chart(data) {
+		var arr = [];
+
+		if (data && data.length > 0) {	// 최초 접속 시 저장된 필터 정보로 오픈
+			arr = data.filter(e => e.col).map(obj => obj.col);
+			if (arr.length < 1) {
+				return;
+			}
+
+		} else {	// 사용자 직접 오픈
+			var value = ts_org.value;
+			arr = [...new Set(orgInfo.filter(e => e.depth == 4 && value.indexOf(e.org_cd) > -1).map(e => e.hirk_org_cd))];
+
+			if (arr.length < 1) {
+				BI.Msg.toast('그룹을 선택하세요');
+				return;
+			}
+		}
+
+		if (!authCheck()) {
+			return;
+		}
+
+		$('#chart-form').html('');
+		arr.forEach(e => $('#chart-form').append($('<input>', {type: 'hidden', name: 'group', value: e})));
+
+		var popupName = 'c-' + Array.from(arr).join();
+		var w = $('input[name="group"]').length > 1 ? 700 : 350;
+		var h = Math.ceil($('input[name="group"]').length / 2) * 330;
+
+		window.open('', popupName, 'width=' + w + ',height=' + h);
+		$('#chart-form').attr('target', popupName);
+		$('#chart-form').submit();
+	}
+
+	var winker;
+	var wProp;
+	var dbID;
+	var req_dbID = [];
+	var statID = [111, 113, 114, 115, 116, 117, 119].join(STA_DIM);
+
+	/* 조회 시 websocket event */
+	function wsStart() {
+		wStat = {};
+
+		if (!isOpen(winker)) {
+			// 기존 connection 없는 경우(ex. 최초 조회) connection부터 시작
+			wsConnect();
+
+		} else {
+			// 기존 요청 해제 후 재요청
+			wsClose(winker, req_dbID, statID);
+			wsOpen();
+		}
+	}
+
+	/* websocket connect */
+	function wsConnect() {
+		try {
+			if (!wProp) {
+				wProp = getWProperties();
+			}
+
+			winker = new winkWebSocket();
+			var eventCallback = wsCallback;
+			var logCallback   = null;
+
+			winker.wConnect(wProp.strHostP, wProp.intPortP, wProp.strHostB, wProp.intPortB, eventCallback, logCallback, wProp.consoleFlag, wProp.wssFlag);
+
+		} catch (e) {
+			wsError();
+		}
+	}
+
+	/* websocket open */
+	function wsOpen() {
+		if (grid && !grid._isDestroyed) {
+			grid.destroy(true);
+		}
+
+		if (listCols.length < 1) {
+			$('.grid').hide();
+			$('.no-data').show();
+			onLoading(false);
+		}
+
+		layoutInitFlag = false;
+
+		// 팀별 box 영역 append
+		listCols.forEach((e, i) => {
+			var $box = $('<div>', {class: 'box'});
+			$box.append($('<div>', {class: 'title', text: e.value}));
+			$box.append($('<div>', {class: 'summary'}));
+			$box.find('.summary').append($('<span data-value="all">로그인 <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="3">대기 <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="15">IB <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="14">OB <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="5">후처리 <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="4">이석 <em class="cnt">0</em></span>'));
+			$box.find('.summary').append($('<span data-value="99">기타 <em class="cnt">0</em></span>'));
+			$box.append($('<div>', {class: 'item-wrapper d-grid'}));
+
+			$('.box-container > .grid').append($box);
+			$box.wrap($('<div>', {class: 'grid-item'}))
+				.wrap($('<div>', {class: 'item-content'}))
+				.wrap($('<div>', {class: 'box-wrapper', 'data-org-cd': e.col, 'data-org-name': e.value}));
+		});
+
+		createGrid();
+		$('.grid').show();
+
+		var orgCds = listCols.map(e => e.col);
+		dbID = userInfo.filter(e => orgCds.indexOf(e.org_cd) > -1 && e.agid).map(e => e.agid);
+
+		if (dbID && dbID.length > 0) {
+			// socket open
+			req_dbID = openStat(winker, dbID, statID);
+
+		} else {
+			grid.layout();
+			onLoading(false);
+		}
+	}
+
+	/* websocket callback */
+	function wsCallback(eventId, eventMsg, objectDBId, objectType, statId, statVal) {
+		// onopen
+		if (eventId == WMessageType.EventServerConnected) {
+			setTimeout(function() {
+				wsOpen();
+			}, 1000);
+		}
+
+		// onmessage (요청 dbID인 경우에만 처리)
+		if (eventId == WMessageType.EventStatInfo) {
+			if (dbID.indexOf(objectDBId) > -1) {
+				setData(objectDBId, objectType, statId, statVal);
+			}
+		}
+
+		// onerror
+		if (eventId == WMessageType.EventError) {
+			wsError();
+		}
+	}
+
+	var wStat = {};
+	var statCols = {111: 'agname', 113: 'num', 114: '114', 115: '115', 116: '116', status: 'status', 117: 'auxStatus', 119: 'agtime', org: 'org'};
+
+	/* websocket 수신 데이터 처리 */
+	function setData(dbID, type, statId, statVal) {
+		if (!wStat[dbID]) {
+			var stat = {};
+			stat.name = userInfo.filter(e => e.agid == dbID)[0].name;    // 이름
+			stat.org = userInfo.filter(e => e.agid == dbID)[0].org_cd;   // 조직
+			stat.loginId = getLoginId(userInfo.filter(e => e.agid == dbID)[0].login_id); // 로그인ID
+
+			wStat[dbID] = stat;
+		}
+
+		wStat[dbID][statCols[statId]] = statVal;
+
+		// 현재상태(115)가 Call 관련 상태인 경우, 해당 상태가 우선이 된다
+		if (statId == '115' || statId == '116') {
+			if (statVal == '0' || statVal == '1') {
+				wStat[dbID].status = statVal;
+
+			} else {
+				var stat115 = wStat[dbID]['115'];
+
+				if (5 < Number(stat115)) {
+					wStat[dbID].status = stat115;
+				} else {
+					wStat[dbID].status = statVal;
+				}
+			}
+		}
+
+		// 이석상세사유가 후처리인 경우, 후처리로 표기
+		if (statId == '117') {
+			if (wStat[dbID].status == '4' && statVal == '8') {
+				wStat[dbID].status = '5';
+			}
+		}
+
+		// skill id값이 있는 경우, IB로 표기
+		if (statId == '114') {
+			if (statVal.length == 36 && wStat[dbID].status != '0' && wStat[dbID].status != '1') {
+				wStat[dbID].status = '15';
+			}
+		}
+
+		setItem(dbID);
+	}
+
+	var layoutInitFlag = false;
+
+	/* 화면단 데이터 갱신 */
+	function setItem(dbID) {
+		var stat = wStat[dbID];
+		var $boxwrp = $('.box-wrapper[data-org-cd="' + stat.org + '"]');
+		var $item = $('#' + dbID);
+
+		// 상태값 수신 받지 못한 경우 return
+		if (!stat.status) {
+			return;
+		}
+
+		// 알수없음(0), 로그아웃(1) 인원을 제외한 나머지 인원 전체 노출 (= 로그인 인원만 노출)
+		if (stat.status == '0' || stat.status == '1') {
+			if ($item.length > 0) {
+				$item.remove(); // 로그아웃 상태이므로 화면상에서 제거
+
+				if (!cLayoutEnd && layoutInitFlag) {
+					setGridLayout(true);
+				}
+			}
+
+		} else {
+			// 화면상에 해당 상담사 영역이 없는 경우, 추가
+			if ($item.length < 1) {
+				$item = $('<div>', {class: 'item', id: dbID, 'data-org-cd': stat.org});
+				$item.append($('<p>', {class: 'name'}));
+				$item.append($('<p>', {class: 'loginId'}));
+				$item.append($('<p>', {class: 'status'}));
+				$item.append($('<p>', {class: 'agtime'}));
+
+				$boxwrp.find('.item-wrapper').append($item);
+
+				// 데이터 노출 항목 선택값에 따른 제어
+				$('.list-item').each(function() {
+					if (!$(this).prop('checked')) {
+						$item.find('.' + $(this).val()).hide();
+					}
+				});
+
+				if (!cLayoutEnd && layoutInitFlag) {
+					setGridLayout(true);
+				}
+			}
+
+			Object.keys(stat).forEach(key => {
+				var value = stat[key];
+				var $p = $item.find('.' + key);
+
+				if ($p.length < 1) return false;
+
+				if (key == 'status') {
+					// 이석 상세 사유 표기
+					if (value == '4' && WAuxStatus[stat.auxStatus]) {
+						$p.text(WAuxStatus[stat.auxStatus].text);
+						$p.attr('data-auxstatus', stat.auxStatus);
+
+					} else {
+						$p.text(WAgentStatus[value].text);
+						$p.removeAttr('data-auxstatus');
+					}
+
+					$p.attr('data-status', WAgentStatus[value].mark);
+
+				} else if (key == 'agtime') {
+					$p.text(getHis(value));
+
+					// 상태유지시간 임계치 도달 시 강조 처리
+					var col = WAgentStatus[stat.status].mark;
+					if (ft_threshold[col]) {
+						if (Number(value) >= Number(ft_threshold[col])) {
+							$item.addClass('timeout');
+
+						} else {
+							$item.removeClass('timeout');
+						}
+
+					} else {
+						$item.removeClass('timeout');
+					}
+
+					$item.attr('data-status', stat.status);
+
+				} else {
+					$p.text(value);
+				}
+			});
+
+			// 툴팁
+			var orgTitle = $item.attr('data-original-title');
+			var title = Array.from($item.find('p:not(.agtime)').map((i, el) => $(el).text())).join('<br>');
+			if (orgTitle != title) {
+				$item.attr('title', title);
+				$item.tooltip('dispose');
+				$item.tooltip({html: true});
+			}
+		}
+
+		// 상태별 카운트 갱신
+		$boxwrp.find('.summary span').each(function() {
+			var value = $(this).data('value');
+
+			if (value == 'all') {
+				$(this).find('.cnt').text($boxwrp.find('.item').length); // 로그인 수
+
+			} else {
+				$(this).find('.cnt').text($boxwrp.find('.status[data-status="' + value + '"]').length); // 상태별
+			}
+		});
+
+		if (!layoutInitFlag) {
+			var statLen = Object.keys(wStat).length;
+			if (window.dbID.length <= statLen) {
+				setGridLayout(true);
+				layoutInitFlag = true;
+			}
+		}
+	}
+</script>
+</head>
+<body>
+<form id="chart-form" action="/webroot/decision/uplus/agent/chart" method="GET"></form>
+
+<div class="u-container">
+	<!--필터 영역-->
+	<div class="filter-wrapper shadow-sm d-table">
+		<div class="d-table-cell">
+			<div class="tree-container custom-select" id="channel-tree" data-placeholder="- 채널 -"></div>
+			<div class="tree-container custom-select" id="org-tree" data-placeholder="- 센터/그룹/팀 -"></div>
+			<button class="btn btn-info" onclick="submit();">조회</button>
+			<button class="btn btn-clear" id="btn-clear">초기화</button>
+			<button class="btn btn-info" onclick="chart();">상담사현황</button>
+
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="name">이름</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="loginId">로그인ID</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="status">상태</label>
+			</span>
+			<span class="checkbox-inline">
+				<label><input type="checkbox" name="list-item" class="list-item" value="agtime">시간</label>
+			</span>
+		</div>
+
+		<div class="d-table-cell text-right">
+			<button class="btn btn-white" data-toggle="modal" data-target="#modal-threshold">임계치설정</button>
+			<button class="btn btn-white" onclick="saveFilter();">필터저장</button>
+			<button class="btn btn-white" onclick="initFilter({page: page, message: '해당 페이지의 필터가 전체 삭제됩니다.\n\n* 임계치 설정 포함'});">필터초기화</button>
+		</div>
+	</div>
+	<!--//필터 영역-->
+
+	<!--데이터 영역-->
+	<div class="box-container load-data">
+		<div class="no-data">데이터가 존재하지 않습니다</div>
+		<div class="grid" style="display:none;"></div>
+	</div>
+	<!--//데이터 영역-->
+
+	<!--임계치 설정-->
+	<div class="modal" id="modal-threshold" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<!--//임계치 설정-->
+</div>
+
+<script>
+	var col_size = 0; // 기존 컬럼 수
+	var grid;
+	var cLayoutEnd = false;
+
+	/* grid 적용 */
+	function createGrid() {
+		cLayoutEnd = false;
+
+		grid = new Muuri('.grid', {
+			dragEnabled: true,
+			items: '.grid-item',
+			layoutOnInit: false,
+			layoutDuration: 0,
+			layoutOnResize: 0
+		});
+
+		// container 영역 resize 이벤트 발생 시, grid layout 조정
+		var observer = new ResizeObserver(() => {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, req_dbID, statID, active);
+
+			setGridLayout();
+		});
+		observer.observe(document.querySelector('.u-container'));
+
+		document.addEventListener('visibilitychange', function() {
+			var active = !document.hidden && $('.u-container').is(':visible');
+			wsCheckState(winker, req_dbID, statID, active);
+		});
+
+		// box 이동 시, 필터 저장용 데이터 갱신 및 grid layout 조정
+		grid.on('dragReleaseEnd', function(item) {
+			grid.synchronize();
+			listCols = Array.from($('.box-wrapper').map((i, e) => {
+				return {col: $(e).data('org-cd'), value: $(e).data('org-name')}
+			}));
+			setGridLayout(true);
+		});
+
+		grid.on('layoutEnd', function() {
+			if (layoutInitFlag && !cLayoutEnd) {
+				onLoading(false);
+				cLayoutEnd = true;
+			}
+		});
+	}
+</script>
+</body>
+</html>
